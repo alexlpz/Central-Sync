@@ -1,0 +1,258 @@
+# Laboratorio Debezium: captura de cambios (CDC) desde 3 MySQL de "punto de
+# venta" (sucursales) hacia Kafka, usando Kafka Connect + el conector MySQL
+# de Debezium, y una app propia que consolida todo en una Base Central.
+#
+# Servicios:
+#   mysql-sucursal-01/02/03 -> los 3 MySQL de las sucursales (POS), editables
+#                              desde DBeaver. Cada uno con su propio binlog.
+#   mysql-central            -> MySQL destino, poblado SOLO por central-sync
+#   kafka                    -> Kafka en modo KRaft, imagen oficial de Debezium
+#   connect                  -> Kafka Connect con el plugin de Debezium
+#   central-sync              -> app Python: consume Kafka y escribe en la Base Central
+#   connector-watchdog       -> app Python: recupera conectores en FAILED o UNASSIGNED
+#   kafdrop                  -> UI web para inspeccionar topics/mensajes (http://localhost:9000)
+#
+# Imágenes verificadas contra el tutorial oficial de Debezium
+# (https://debezium.io/documentation/reference/stable/tutorial.html), que a la
+# fecha usa quay.io/debezium/* en modo KRaft. Si al ejecutar esto una imagen ya
+# tiene una versión más nueva disponible, puedes ajustar el tag sin cambiar nada
+# más de la configuración.
+
+x-mysql-pos-common: &mysql-pos-common
+  image: mysql:8.0
+  restart: unless-stopped
+
+services:
+  mysql-sucursal-01:
+    <<: *mysql-pos-common
+    container_name: dbz-lab-mysql-sucursal01
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: pos_sucursal_01
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    command:
+      - --server-id=184054
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql-init/pos/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./mysql-init/pos/seed-sucursal01.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - mysql-sucursal01-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mysql-sucursal-02:
+    <<: *mysql-pos-common
+    container_name: dbz-lab-mysql-sucursal02
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: pos_sucursal_02
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    command:
+      - --server-id=184055
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./mysql-init/pos/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./mysql-init/pos/seed-sucursal02.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - mysql-sucursal02-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mysql-sucursal-03:
+    <<: *mysql-pos-common
+    container_name: dbz-lab-mysql-sucursal03
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: pos_sucursal_03
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    command:
+      - --server-id=184056
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./mysql-init/pos/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./mysql-init/pos/seed-sucursal03.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - mysql-sucursal03-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mysql-central:
+    image: mysql:8.0
+    container_name: dbz-lab-mysql-central
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: central_farmacias
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3309:3306"
+    volumes:
+      - ./mysql-init/central/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - mysql-central-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  kafka:
+    image: quay.io/debezium/kafka:3.5
+    container_name: dbz-lab-kafka
+    restart: unless-stopped
+    environment:
+      CLUSTER_ID: "kOTUYXhbB46cVNruyslFmg"
+      NODE_ID: "1"
+      NODE_ROLE: "combined"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/kafka/data
+      - kafka-logs:/kafka/logs
+
+  connect:
+    image: quay.io/debezium/connect:3.5
+    container_name: dbz-lab-connect
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - mysql-sucursal-01
+      - mysql-sucursal-02
+      - mysql-sucursal-03
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: dbz_lab_connect_configs
+      OFFSET_STORAGE_TOPIC: dbz_lab_connect_offsets
+      STATUS_STORAGE_TOPIC: dbz_lab_connect_status
+    ports:
+      - "8083:8083"
+
+  central-sync:
+    build: ./central-sync
+    container_name: dbz-lab-central-sync
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - mysql-central
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CENTRAL_DB_HOST: mysql-central
+      CENTRAL_DB_PORT: "3306"
+      CENTRAL_DB_USER: root
+      CENTRAL_DB_PASSWORD: rootpassword
+      CENTRAL_DB_NAME: central_farmacias
+      HEARTBEAT_FILE: /tmp/central-sync-heartbeat
+      HEARTBEAT_MAX_AGE_S: "60"
+      RESTART_STATE_FILE: /tmp/central-sync-restarts.json
+      CRASH_LOOP_WINDOW_S: "600"
+      CRASH_LOOP_THRESHOLD: "5"
+      CENTRAL_APPLIED_TOPIC: central.applied
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import os,sys,time; p=os.environ.get('HEARTBEAT_FILE','/tmp/central-sync-heartbeat'); age=int(os.environ.get('HEARTBEAT_MAX_AGE_S','60')); sys.exit(0 if os.path.exists(p) and time.time()-os.path.getmtime(p) < age else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  connector-watchdog:
+    build: ./connector-watchdog
+    container_name: dbz-lab-connector-watchdog
+    restart: unless-stopped
+    depends_on:
+      - connect
+    volumes:
+      - ./connector:/connector-configs:ro
+    environment:
+      CONNECT_URL: http://connect:8083
+      CHECK_INTERVAL_S: "15"
+      UNASSIGNED_GRACE_S: "60"
+      UNASSIGNED_HARD_RESET_AFTER_S: "300"
+      HARD_RESET_COOLDOWN_S: "300"
+
+  live-dashboard:
+    build: ./live-dashboard
+    container_name: dbz-lab-live-dashboard
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - central-sync
+      - mysql-central
+      - mysql-sucursal-01
+      - mysql-sucursal-02
+      - mysql-sucursal-03
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CENTRAL_APPLIED_TOPIC: central.applied
+      CENTRAL_DB_HOST: mysql-central
+      CENTRAL_DB_PORT: "3306"
+      CENTRAL_DB_USER: root
+      CENTRAL_DB_PASSWORD: rootpassword
+      CENTRAL_DB_NAME: central_farmacias
+      SUCURSAL01_DB_HOST: mysql-sucursal-01
+      SUCURSAL02_DB_HOST: mysql-sucursal-02
+      SUCURSAL03_DB_HOST: mysql-sucursal-03
+      BRANCH_DB_USER: appuser
+      BRANCH_DB_PASSWORD: apppassword
+      BRANCH_DB_PORT: "3306"
+      MYSQL_CENTRAL_CONTAINER: dbz-lab-mysql-central
+      KAFKA_CONTAINER: dbz-lab-kafka
+    ports:
+      - "8090:8090"
+    volumes:
+      # Solo para los botones "simular caída" del panel de demo: detener/
+      # arrancar los contenedores de mysql-central y kafka desde el propio
+      # dashboard. Da al contenedor control total sobre el Docker del host —
+      # aceptable en este laboratorio local, nunca en un entorno compartido.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: dbz-lab-kafdrop
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERCONNECT: kafka:9092
+      JVM_OPTS: "-Xms64M -Xmx128M"
+    ports:
+      - "9000:9000"
+
+volumes:
+  mysql-sucursal01-data:
+  mysql-sucursal02-data:
+  mysql-sucursal03-data:
+  mysql-central-data:
+  kafka-data:
+  kafka-logs:

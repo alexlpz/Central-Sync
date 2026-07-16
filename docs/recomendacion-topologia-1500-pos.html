@@ -1,0 +1,350 @@
+<title>Recomendación de topología a 1500+ sucursales — debezium-lab</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --paper: #ffffff;
+    --ink: #171b26;
+    --ink-soft: #4b5568;
+    --ink-faint: #7c8798;
+    --accent: #0e7a72;
+    --accent-ink: #075a54;
+    --accent-soft: #e4f1ef;
+    --line: #dbdfe6;
+    --line-soft: #eaecf0;
+    --ok: #2f8f4e;
+    --ok-soft: #e6f4ea;
+    --warn: #b8790c;
+    --warn-soft: #fbf0dd;
+    --bad: #c4432b;
+    --bad-soft: #fbeae6;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 820px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  header.doc-head { border-bottom: 3px solid var(--ink); padding-bottom: 22px; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--accent-ink); font-weight: 600;
+  }
+  h1 {
+    font-family: var(--mono); font-size: 27px; font-weight: 700; letter-spacing: -0.01em;
+    margin: 10px 0 8px; text-wrap: balance; color: var(--ink);
+  }
+  .doc-sub { color: var(--ink-soft); font-size: 15.5px; max-width: 66ch; }
+  .meta-row {
+    display: flex; gap: 22px; margin-top: 16px; font-family: var(--mono);
+    font-size: 12px; color: var(--ink-faint); flex-wrap: wrap;
+  }
+  .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  h2.section-head {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 56px 0 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  h2.section-head .block-title {
+    display: block; font-family: var(--sans); font-size: 22px; letter-spacing: 0;
+    text-transform: none; color: var(--ink); font-weight: 700; margin-top: 4px;
+  }
+  .block-intro { color: var(--ink-soft); font-size: 14.5px; margin: 14px 0 22px; max-width: 68ch; }
+
+  h3 { font-size: 16.5px; font-weight: 700; margin: 30px 0 10px; }
+  h3.sub { font-size: 14.5px; margin: 22px 0 8px; color: var(--ink-soft); font-family: var(--mono); letter-spacing: .01em; }
+
+  p { max-width: 68ch; font-size: 14.5px; }
+  ul, ol { max-width: 68ch; font-size: 14.5px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+
+  code.inline {
+    font-family: var(--mono); font-size: 0.9em; background: var(--line-soft);
+    padding: 1px 5px; border-radius: 3px; color: var(--accent-ink);
+  }
+  pre {
+    background: var(--ink); color: #eef2f0; font-family: var(--mono); font-size: 12.8px;
+    padding: 12px 14px; border-radius: 4px; overflow-x: auto; margin: 10px 0; line-height: 1.55;
+  }
+  pre .dim { color: #8fa39c; }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.3px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 10.3px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  td.mono { font-family: var(--mono); font-size: 12.8px; }
+  tr.reco td:first-child { position: relative; }
+  .reco-tag {
+    display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .05em;
+    text-transform: uppercase; background: var(--accent); color: #fff; padding: 2px 6px;
+    border-radius: 3px; margin-left: 8px; vertical-align: middle;
+  }
+
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--ink); background: var(--paper);
+    padding: 14px 16px; border-radius: 0 4px 4px 0; font-size: 14px; color: var(--ink-soft); margin: 18px 0;
+  }
+  .callout strong { color: var(--ink); }
+  .callout.reco { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+  .callout.risk { border-left-color: var(--warn); background: var(--warn-soft); color: var(--ink); }
+
+  .diagram {
+    font-family: var(--mono); font-size: 12.5px; background: var(--ink); color: #dfe7e4;
+    padding: 20px 18px; border-radius: 6px; overflow-x: auto; white-space: pre; line-height: 1.6; margin: 16px 0;
+  }
+  .diagram .hl { color: #7fd8cd; }
+  .diagram .hl2 { color: #f0c26e; }
+  .diagram .bad { color: #f0a08e; }
+
+  .req-group { margin-bottom: 30px; }
+  .req-group h4 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 10px; font-weight: 700;
+  }
+  .req-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .req-list li {
+    display: grid; grid-template-columns: 150px 1fr; gap: 14px; font-size: 13.8px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+  }
+  .req-list li:last-child { border-bottom: none; padding-bottom: 0; }
+  .req-list .k { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .req-list .v { color: var(--ink); }
+
+  .checklist { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 9px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px; font-size: 14px; padding: 9px 12px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+  }
+  .checklist .box {
+    width: 15px; height: 15px; border: 1.5px solid var(--ink-faint); border-radius: 3px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  .bridge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0 8px; }
+  .bridge-col { border-radius: 4px; padding: 14px 16px; }
+  .bridge-col.have { background: var(--ok-soft); }
+  .bridge-col.need { background: var(--warn-soft); }
+  .bridge-col.bad { background: var(--bad-soft); }
+  .bridge-col h4 {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+    margin: 0 0 10px; font-weight: 700;
+  }
+  .bridge-col.have h4 { color: var(--ok); }
+  .bridge-col.need h4 { color: var(--warn); }
+  .bridge-col.bad h4 { color: var(--bad); }
+  .bridge-col ul { margin: 0; padding-left: 18px; font-size: 13.3px; }
+  .bridge-col li { margin-bottom: 6px; }
+  @media (max-width: 620px) { .bridge-grid { grid-template-columns: 1fr; } }
+
+  .decision {
+    border: 1px solid var(--line); border-radius: 5px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .decision .q { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; }
+  .decision .opts { font-size: 13.5px; color: var(--ink-soft); }
+
+  .verdict {
+    border: 2px solid var(--accent); background: var(--accent-soft); border-radius: 6px;
+    padding: 20px 22px; margin: 18px 0;
+  }
+  .verdict .tag {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--accent-ink); font-weight: 700; margin-bottom: 8px; display: block;
+  }
+  .verdict .main { font-size: 16.5px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .verdict .sub { font-size: 14px; color: var(--ink-soft); }
+
+  footer {
+    margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint);
+  }
+  @media (max-width: 560px) { .page { padding: 32px 16px 64px; } h1 { font-size: 21px; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">debezium-lab · recomendación técnica</span>
+    <h1>Kafka Connect centralizado vs. Debezium Server por sucursal, a 1500+ POS</h1>
+    <p class="doc-sub">Las dos propuestas anteriores (<code class="inline">arquitectura-produccion.html</code>
+    y <code class="inline">arquitectura-produccion-opcion-a.html</code>) evalúan la decisión pensando
+    en 50+ sucursales. A 1500+, la escala cambia la respuesta: lo que era una preferencia operativa
+    a 50 sucursales se vuelve un límite técnico duro a 1500. Este documento explica por qué, y cierra
+    con una recomendación concreta.</p>
+    <div class="meta-row">
+      <span><strong>Escenario:</strong> 1500+ puntos de venta</span>
+      <span><strong>Decide entre:</strong> Opción A (Kafka Connect centralizado) vs. Opción B (Debezium Server por sucursal)</span>
+    </div>
+  </header>
+
+  <h2 class="section-head"><span class="block-title">1. Por qué la respuesta cambia con la escala</span></h2>
+  <p class="block-intro">A 50 sucursales, si ya existe una VPN corporativa madura, Opción A es
+  razonable: un solo lugar para administrar todo, sin agentes que mantener. Ese argumento no
+  desaparece a 1500 — pero deja de ser el factor dominante, porque dos cosas que a 50 sucursales
+  son "más simples de operar" se convierten a 1500 en **cuellos de botella estructurales**: el
+  clúster de Kafka Connect y la malla de red de entrada.</p>
+
+  <p>La pregunta correcta a esta escala no es "¿qué es más simple de operar un día cualquiera?"
+  sino "¿qué arquitectura permite agregar la sucursal 1200 con el mismo esfuerzo marginal que la
+  sucursal 30, sin degradar a las otras 1199?" Opción A falla esa prueba; Opción B la pasa.</p>
+
+  <h2 class="section-head"><span class="block-title">2. Por qué Opción A no escala bien a 1500+</span></h2>
+
+  <h3>2.1 — El clúster de Kafka Connect se vuelve el cuello de botella</h3>
+  <p>Kafka Connect en modo distribuido reparte los conectores entre los workers del clúster y
+  se reorganiza (<em>rebalanceo</em>) cada vez que un worker entra, sale, o un conector se
+  agrega/quita/falla. Con decenas de conectores esto es rutina; con <strong>1500 conectores
+  activos simultáneos</strong> — cada uno manteniendo su propia conexión de replicación MySQL,
+  su propio historial de esquema y sus propias tareas — el clúster entra en un régimen distinto:</p>
+  <ul>
+    <li>Cada rebalanceo mueve una fracción de 1500 conectores entre workers; cuanto más grande el
+    clúster, más caro y más lento resulta ese evento, y ocurre con más frecuencia porque a mayor
+    cantidad de sucursales, mayor la probabilidad de que alguna falle en un momento dado.</li>
+    <li>El footprint de memoria/threads por conector (historial de esquema, buffers de conexión)
+    se multiplica por 1500 en un puñado de JVMs — obliga a un número de workers considerable solo
+    para sostener el clúster, antes de considerar throughput.</li>
+    <li>Un incidente del propio clúster de Connect (un worker caído, un rebalanceo colgado) deja de
+    afectar "una sucursal" y pasa a afectar <strong>un subconjunto grande o la totalidad</strong> de
+    las 1500 a la vez — es un único punto de falla compartido por todo el negocio.</li>
+  </ul>
+  <p>La mitigación obvia — partir el problema en varios clústeres de Connect más chicos — funciona,
+  pero en ese punto se está reinventando, con más complejidad operativa (varios clústeres que
+  vigilar en vez de una flota de agentes homogéneos), la misma idea de fondo que ya resuelve
+  Opción B de forma nativa: aislar la captura de cada sucursal en una unidad independiente.</p>
+
+  <h3>2.2 — La red de entrada no escala a 1500 rutas</h3>
+  <p>Opción A exige que el centro pueda <strong>iniciar</strong> una conexión hacia el MySQL de
+  cada sucursal. A 50 sucursales sobre una VPN corporativa ya existente, eso es 50 rutas
+  adicionales sobre una infraestructura que el equipo de red ya opera. A 1500, es:</p>
+  <ul>
+    <li>1500 reglas de firewall/rutas activas que mantener, auditar y revisar — cada una una
+    superficie de ataque potencial hacia un MySQL de producción.</li>
+    <li>Una dependencia dura y permanente en la capacidad del concentrador VPN (throughput,
+    número de túneles simultáneos, latencia) — el equipo de red se vuelve un cuello de botella
+    para cada alta, baja o cambio de sucursal.</li>
+    <li>Un requisito de que <strong>cada una</strong> de las 1500 sucursales tenga (o adopte) la
+    misma VPN corporativa — poco realista si algunas son franquicias, tienen proveedores de
+    internet distintos, o infraestructura de red heterogénea, algo común a esa escala.</li>
+  </ul>
+
+  <div class="diagram"><span class="bad">1500 rutas de entrada, un solo destino</span>
+
+┌─ Sucursal 1 ────┐──┐
+┌─ Sucursal 2 ────┐──┤
+┌─ Sucursal 3 ────┐──┤     <span class="bad">1500 túneles/rutas activos</span>
+        ⋮              ├───►  concentrador VPN  ───►  <span class="hl">1 clúster de Kafka Connect</span>
+┌─ Sucursal 1500 ─┐──┘        (cuello de botella)        (cuello de botella)</div>
+
+  <h3>2.3 — El modelo de fallas no ayuda a esta escala</h3>
+  <p>Con 1500 sucursales reales, siempre habrá un subconjunto con conectividad degradada en un
+  momento dado — es estadística, no una excepción. En Opción A, cuando una sucursal se cae, su
+  conector queda <code class="inline">FAILED</code> o <code class="inline">UNASSIGNED</code> en el
+  centro (lo que ya prueba <code class="inline">connector-watchdog</code> en el laboratorio) y el
+  binlog de esa sucursal sigue creciendo hasta que el centro logre reconectar. A 1500 sucursales,
+  esto no es un evento aislado — es un flujo constante de conectores entrando y saliendo de estado
+  de falla, todos compitiendo por la atención del mismo clúster y del mismo watchdog central.</p>
+
+  <h2 class="section-head"><span class="block-title">3. Por qué Opción B sí escala a 1500+</span></h2>
+  <p class="block-intro">Debezium Server convierte el problema de "1500 sucursales" en "1500
+  instancias idénticas de un mismo problema pequeño", en vez de "un problema 1500 veces más grande
+  en el mismo lugar". Esa es la diferencia estructural.</p>
+
+  <ul>
+    <li><strong>Aislamiento real de fallas:</strong> una sucursal con mala conectividad afecta solo
+    a su propio agente — lee y bufferea su binlog localmente, y reintenta el envío por su cuenta.
+    No consume recursos ni atención de un clúster compartido, y no compite por un rebalanceo
+    compartido con las otras 1499.</li>
+    <li><strong>Red estándar de retail:</strong> tráfico saliente por HTTPS/TLS es exactamente lo
+    que cualquier POS ya necesita para procesar pagos con las redes de tarjetas — no exige abrir
+    ni mantener ninguna ruta de entrada. Onboardear la sucursal 1500 es una copia de configuración,
+    no una gestión de firewall nueva.</li>
+    <li><strong>Escala horizontal sin cuello de botella compartido:</strong> agregar una sucursal
+    agrega un agente más — no le pide nada al agente de ninguna otra sucursal, ni reconfigura un
+    clúster compartido. El límite de escala pasa a ser "cuántos agentes puede administrar la flota",
+    un problema bien conocido (parecido a gestionar flotas de dispositivos/edge), no "cuántos
+    conectores tolera un clúster de Connect antes de degradarse".</li>
+    <li><strong>Blast radius acotado:</strong> un agente mal configurado, comprometido o caído
+    expone o afecta una sucursal, no un clúster central que sirve a las 1500 a la vez.</li>
+  </ul>
+
+  <div class="callout risk">Esto no es gratis: cambia qué hay que operar. En vez de un clúster
+  central, hay que gestionar el ciclo de vida de 1500 agentes (despliegue, actualización,
+  identidad/credenciales, monitoreo agregado). La sección 5 cubre cómo hacer que ese trabajo
+  también escale sin fricción lineal por sucursal.</div>
+
+  <h2 class="section-head"><span class="block-title">4. Recomendación</span></h2>
+
+  <div class="verdict">
+    <span class="tag">Recomendación para 1500+ sucursales</span>
+    <div class="main">Opción B — Debezium Server por sucursal</div>
+    <div class="sub">La ventaja operativa de Opción A ("un solo lugar para administrar todo")
+    depende de que ese "solo lugar" pueda absorber 1500 conectores y 1500 rutas de red sin
+    degradarse — y a esta escala no puede, sin partirse en múltiples clústeres y múltiples tramos
+    de red, momento en el cual ya se pagó la complejidad de una flota distribuida sin ganar
+    ninguno de sus beneficios de aislamiento. Opción B paga esa complejidad de flota desde el
+    principio, pero a cambio de aislamiento de fallas real y de una red que no exige abrir nada
+    hacia adentro en 1500 ubicaciones.</div>
+  </div>
+
+  <p>El cruce entre "Opción A es más simple" y "Opción A es un cuello de botella" no ocurre en un
+  número mágico exacto, pero la señal de que ya se cruzó aparece mucho antes de las 1500: cuando
+  el equipo empieza a considerar partir Kafka Connect en más de un clúster, o cuando el equipo de
+  red se vuelve la ruta crítica para dar de alta una sucursal nueva. Con 1500 sucursales, ambas
+  señales son certeras desde el diseño, no un riesgo a futuro.</p>
+
+  <h2 class="section-head"><span class="block-title">5. Qué exige operar Opción B a esta escala</span></h2>
+  <p class="block-intro">Elegir Opción B no elimina el trabajo de operar 1500 sucursales — lo
+  traslada a un problema de gestión de flota, que sí tiene patrones probados para resolverse sin
+  fricción lineal por sucursal.</p>
+
+  <div class="req-group">
+    <h4>Despliegue y actualización</h4>
+    <ul class="req-list">
+      <li><span class="k">Config templada</span><span class="v">Una única plantilla de configuración de Debezium Server parametrizada por sucursal (host, server.id, topic.prefix, credenciales) — nunca configuración a mano por sitio</span></li>
+      <li><span class="k">Automatización</span><span class="v">Playbook (Ansible/similar) o imagen de contenedor versionada que se despliega igual en la sucursal 1 y en la 1500 — el esfuerzo de agregar una sucursal no debe crecer con la cantidad de sucursales ya existentes</span></li>
+      <li><span class="k">Actualización de versión</span><span class="v">Mecanismo de rollout escalonado (canary por lote de sucursales) para actualizar los 1500 agentes sin exponerse a que un cambio malo llegue a todos a la vez</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Identidad, credenciales y seguridad</h4>
+    <ul class="req-list">
+      <li><span class="k">Identidad por agente</span><span class="v">Credenciales (certificado o secreto) únicas por sucursal para autenticar contra el Kafka central — nunca una credencial compartida entre 1500 agentes</span></li>
+      <li><span class="k">Emisión y rotación</span><span class="v">Proceso automatizado de emisión/rotación de esas credenciales (vault + PKI o equivalente) — a mano es inviable a esta escala</span></li>
+      <li><span class="k">Revocación</span><span class="v">Capacidad de revocar el acceso de una sucursal puntual (cierre, incidente de seguridad) sin afectar a las otras 1499</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Observabilidad agregada</h4>
+    <ul class="req-list">
+      <li><span class="k">Métricas centralizadas</span><span class="v">Cada agente expone sus métricas (lag, estado, reintentos) hacia el mismo sistema de monitoreo central — la operación necesita ver "cuántas de 1500 están sanas" de un vistazo, no revisar sucursal por sucursal</span></li>
+      <li><span class="k">Alertas por umbral, no por sitio</span><span class="v">Alertar sobre "N sucursales con lag anormal" o "tasa de falla agregada por encima de X%", en vez de una alerta por sucursal — a 1500 sitios, alertas 1:1 generan fatiga de alertas de inmediato</span></li>
+      <li><span class="k">Panel de flota</span><span class="v">Vista tipo fleet-management (versión de agente, última vez visto, estado) — el mismo patrón que ya usan las organizaciones que administran flotas grandes de dispositivos/edge</span></li>
+    </ul>
+  </div>
+
+  <h2 class="section-head"><span class="block-title">6. Lo que no cambia con esta decisión</span></h2>
+  <p class="block-intro">La elección de topología de captura es independiente del resto de la
+  arquitectura de producción — estos requisitos aplican igual, se elija Opción A o B:</p>
+  <ul>
+    <li>Clúster de Kafka con mínimo 3 brokers y factor de replicación ≥3 (a 1500 fuentes, el
+    throughput agregado hace esto aún más crítico, no menos).</li>
+    <li>Sink/consolidación en la Base Central con las mismas garantías ya validadas en el
+    laboratorio (commit manual + reintento con backoff ante caída de la base destino).</li>
+    <li>Snapshot incremental (<code class="inline">when_needed</code>) en vez de
+    <code class="inline">initial</code> para evitar que el arranque de una fuente con historial
+    grande bloquee recursos.</li>
+    <li>Motor destino final (PostgreSQL/Azure SQL) y monitoreo con alertas reales conectadas a un
+    canal, tal como se detalla en las propuestas de Opción A y Opción B ya existentes.</li>
+  </ul>
+
+  <footer>
+    debezium-lab · recomendación de topología a 1500+ sucursales · ver también: arquitectura de producción (Opción A) · arquitectura de producción (Opción B) · runbook de demo
+  </footer>
+
+</div>

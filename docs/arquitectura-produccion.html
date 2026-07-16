@@ -1,0 +1,430 @@
+<title>Arquitectura de producción — debezium-lab</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --paper: #ffffff;
+    --ink: #171b26;
+    --ink-soft: #4b5568;
+    --ink-faint: #7c8798;
+    --accent: #0e7a72;
+    --accent-ink: #075a54;
+    --accent-soft: #e4f1ef;
+    --line: #dbdfe6;
+    --line-soft: #eaecf0;
+    --ok: #2f8f4e;
+    --ok-soft: #e6f4ea;
+    --warn: #b8790c;
+    --warn-soft: #fbf0dd;
+    --bad: #c4432b;
+    --bad-soft: #fbeae6;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 820px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  header.doc-head { border-bottom: 3px solid var(--ink); padding-bottom: 22px; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--accent-ink); font-weight: 600;
+  }
+  h1 {
+    font-family: var(--mono); font-size: 29px; font-weight: 700; letter-spacing: -0.01em;
+    margin: 10px 0 8px; text-wrap: balance; color: var(--ink);
+  }
+  .doc-sub { color: var(--ink-soft); font-size: 15.5px; max-width: 66ch; }
+  .meta-row {
+    display: flex; gap: 22px; margin-top: 16px; font-family: var(--mono);
+    font-size: 12px; color: var(--ink-faint); flex-wrap: wrap;
+  }
+  .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  h2.section-head {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 56px 0 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  h2.section-head .block-title {
+    display: block; font-family: var(--sans); font-size: 22px; letter-spacing: 0;
+    text-transform: none; color: var(--ink); font-weight: 700; margin-top: 4px;
+  }
+  .block-intro { color: var(--ink-soft); font-size: 14.5px; margin: 14px 0 22px; max-width: 68ch; }
+
+  h3 { font-size: 16.5px; font-weight: 700; margin: 30px 0 10px; }
+  h3.sub { font-size: 14.5px; margin: 22px 0 8px; color: var(--ink-soft); font-family: var(--mono); letter-spacing: .01em; }
+
+  p { max-width: 68ch; font-size: 14.5px; }
+  ul, ol { max-width: 68ch; font-size: 14.5px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+
+  code.inline {
+    font-family: var(--mono); font-size: 0.9em; background: var(--line-soft);
+    padding: 1px 5px; border-radius: 3px; color: var(--accent-ink);
+  }
+  pre {
+    background: var(--ink); color: #eef2f0; font-family: var(--mono); font-size: 12.8px;
+    padding: 12px 14px; border-radius: 4px; overflow-x: auto; margin: 10px 0; line-height: 1.55;
+  }
+  pre .dim { color: #8fa39c; }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.3px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 10.3px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  td.mono { font-family: var(--mono); font-size: 12.8px; }
+  tr.reco td:first-child { position: relative; }
+  .reco-tag {
+    display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .05em;
+    text-transform: uppercase; background: var(--accent); color: #fff; padding: 2px 6px;
+    border-radius: 3px; margin-left: 8px; vertical-align: middle;
+  }
+
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--ink); background: var(--paper);
+    padding: 14px 16px; border-radius: 0 4px 4px 0; font-size: 14px; color: var(--ink-soft); margin: 18px 0;
+  }
+  .callout strong { color: var(--ink); }
+  .callout.reco { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+  .callout.risk { border-left-color: var(--warn); background: var(--warn-soft); color: var(--ink); }
+
+  .diagram {
+    font-family: var(--mono); font-size: 12.5px; background: var(--ink); color: #dfe7e4;
+    padding: 20px 18px; border-radius: 6px; overflow-x: auto; white-space: pre; line-height: 1.6; margin: 16px 0;
+  }
+  .diagram .hl { color: #7fd8cd; }
+  .diagram .hl2 { color: #f0c26e; }
+
+  .req-group { margin-bottom: 30px; }
+  .req-group h4 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 10px; font-weight: 700;
+  }
+  .req-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .req-list li {
+    display: grid; grid-template-columns: 130px 1fr; gap: 14px; font-size: 13.8px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+  }
+  .req-list li:last-child { border-bottom: none; padding-bottom: 0; }
+  .req-list .k { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .req-list .v { color: var(--ink); }
+
+  .checklist { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 9px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px; font-size: 14px; padding: 9px 12px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+  }
+  .checklist .box {
+    width: 15px; height: 15px; border: 1.5px solid var(--ink-faint); border-radius: 3px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  .bridge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0 8px; }
+  .bridge-col { border-radius: 4px; padding: 14px 16px; }
+  .bridge-col.have { background: var(--ok-soft); }
+  .bridge-col.need { background: var(--warn-soft); }
+  .bridge-col h4 {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+    margin: 0 0 10px; font-weight: 700;
+  }
+  .bridge-col.have h4 { color: var(--ok); }
+  .bridge-col.need h4 { color: var(--warn); }
+  .bridge-col ul { margin: 0; padding-left: 18px; font-size: 13.3px; }
+  .bridge-col li { margin-bottom: 6px; }
+  @media (max-width: 620px) { .bridge-grid { grid-template-columns: 1fr; } }
+
+  .decision {
+    border: 1px solid var(--line); border-radius: 5px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .decision .q { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; }
+  .decision .opts { font-size: 13.5px; color: var(--ink-soft); }
+
+  footer {
+    margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint);
+  }
+  @media (max-width: 560px) { .page { padding: 32px 16px 64px; } h1 { font-size: 23px; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">debezium-lab · propuesta técnica</span>
+    <h1>De laboratorio a producción: arquitectura, instalación y requerimientos</h1>
+    <p class="doc-sub">Cómo pasar de las 3 sucursales simuladas en Docker a una red real de
+    puntos de venta — qué instalar en cada sucursal, cómo queda la arquitectura completa, y
+    qué se necesita (infraestructura, red, seguridad, equipo) para llevarlo a producción.</p>
+    <div class="meta-row">
+      <span><strong>Basado en:</strong> debezium-lab (validado con 3 sucursales simuladas)</span>
+      <span><strong>Escenario objetivo:</strong> 50+ sucursales, conectividad mixta</span>
+    </div>
+  </header>
+
+  <h2 class="section-head"><span class="block-title">1. Dos formas de instalar Debezium en las sucursales</span></h2>
+  <p class="block-intro">Antes de la arquitectura general hay que decidir esto: <strong>¿quién se conecta hacia quién?</strong>
+  Es la decisión que más condiciona todo lo demás — seguridad de red, qué hay que instalar en
+  cada sucursal, y qué tan bien tolera el sistema una sucursal con internet inestable.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th style="width:22%">&nbsp;</th>
+        <th>Opción A — Kafka Connect centralizado</th>
+        <th>Opción B — Debezium Server por sucursal</th>
+      </tr>
+      <tr>
+        <td>Cómo funciona</td>
+        <td>Un clúster de Kafka Connect en el centro corre un conector por sucursal (es el modelo
+        exacto del laboratorio, con las 3 sucursales en la misma red Docker)</td>
+        <td>Un proceso liviano (<code class="inline">Debezium Server</code>) instalado junto a
+        cada MySQL de sucursal, que empuja los eventos directo al Kafka central</td>
+      </tr>
+      <tr>
+        <td>Dirección de la conexión</td>
+        <td>El centro se conecta <strong>hacia</strong> cada sucursal — necesita una ruta de
+        entrada a cada MySQL de POS</td>
+        <td>Cada sucursal se conecta <strong>hacia afuera</strong>, al Kafka central — no requiere
+        abrir ningún puerto de entrada</td>
+      </tr>
+      <tr>
+        <td>Firewall / NAT en la sucursal</td>
+        <td>Requiere abrir un puerto entrante permanente por sucursal — fricción de seguridad real
+        con 50+ ubicaciones</td>
+        <td>Tráfico saliente por HTTPS/TLS estándar — compatible con el firewall típico de una
+        sucursal de retail sin cambios especiales</td>
+      </tr>
+      <tr>
+        <td>Ante una sucursal caída o sin internet</td>
+        <td>El conector de esa sucursal falla en el centro; requiere que el centro "alcance" la
+        sucursal para reconectar</td>
+        <td>El agente local sigue leyendo el binlog aunque no haya salida a internet, y reintenta
+        el envío solo — tolera mejor una conexión intermitente</td>
+      </tr>
+      <tr class="reco">
+        <td>Recomendación</td>
+        <td colspan="2"><strong>Opción B</strong> para el escenario real (50+ sucursales,
+        conectividad mixta) <span class="reco-tag">recomendada</span> — Opción A solo tiene sentido
+        si todas las sucursales ya están en una VPN privada confiable hacia el centro.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="callout">El resto de este documento asume <strong>Opción B</strong>. Si el negocio
+  ya tiene una VPN corporativa madura conectando todas las sucursales, la Opción A es más simple
+  de operar (un solo lugar para administrar todos los conectores) y el laboratorio ya la modela
+  tal cual — avísame y ajusto esta propuesta.</div>
+
+  <h2 class="section-head"><span class="block-title">2. Arquitectura objetivo</span></h2>
+  <p class="block-intro">Cada sucursal captura y empuja sus propios cambios; el centro los recibe,
+  los consolida, y expone señales de salud reales — nada de esto depende de que alguien esté
+  mirando una terminal.</p>
+
+  <div class="diagram">┌─ Sucursal 1 ─────────────────┐
+│ MySQL POS                    │
+│  └─ binlog ROW + GTID        │
+│  └─ usuario dedicado         │
+│ <span class="hl">Debezium Server</span> (agente)   │──┐
+└───────────────────────────────┘  │  TLS, saliente
+┌─ Sucursal 2 ─────────────────┐  │
+│ MySQL POS + Debezium Server  │──┼──────────┐
+└───────────────────────────────┘  │          │
+┌─ Sucursal N (50+) ───────────┐  │          ▼
+│ MySQL POS + Debezium Server  │──┘   ┌───────────────────────┐
+└───────────────────────────────┘      │  <span class="hl">Kafka</span> (clúster, 3+ brokers│
+                                        │  factor de replicación ≥3)│
+                                        └───────────┬───────────┘
+                                                     │
+                                   ┌─────────────────┼─────────────────┐
+                                   ▼                                   ▼
+                        ┌─────────────────────┐          ┌─────────────────────────┐
+                        │  <span class="hl">Sink</span> (JDBC Sink o app  │          │  <span class="hl2">Monitoreo</span>              │
+                        │  propia tipo central-sync)│          │  métricas + alertas reales│
+                        └──────────┬───────────┘          │  (Slack / email / PagerDuty)│
+                                   ▼                        └─────────────────────────┘
+                        ┌─────────────────────┐
+                        │  Base Central         │
+                        │  (PostgreSQL / Azure SQL) │
+                        └─────────────────────┘</div>
+
+  <p>La diferencia con el laboratorio no es conceptual — es de escala y de quién administra qué.
+  El laboratorio ya prueba, con datos reales, que este patrón (captura → Kafka → consolidación →
+  auto-recuperación) funciona de punta a punta; lo que cambia en producción es la topología de
+  red (sección 1), el tamaño del clúster Kafka, y el nivel de las garantías de seguridad.</p>
+
+  <h2 class="section-head"><span class="block-title">3. Instalación y configuración por sucursal</span></h2>
+  <p class="block-intro">Se repite igual en cada sucursal nueva — por eso vale la pena
+  documentarlo una vez bien y automatizarlo (script de instalación o playbook de Ansible) antes
+  de la sucursal número 10.</p>
+
+  <h3>3.1 — Preparar el MySQL del POS</h3>
+  <ol>
+    <li>Confirmar versión: MySQL 5.7+ u 8.0 (Debezium soporta ambas; se recomienda 8.0 si hay
+    opción de elegir).</li>
+    <li>Habilitar el binlog en formato <code class="inline">ROW</code> con imagen completa, y GTID
+    — la misma receta validada en el laboratorio:
+      <pre>log_bin = ON
+binlog_format = ROW
+binlog_row_image = FULL
+gtid_mode = ON
+enforce_gtid_consistency = ON</pre>
+    </li>
+    <li>Ajustar la retención del binlog para dar margen de recuperación ante una sucursal
+    desconectada por varios días (en el laboratorio no hace falta, pero en producción es
+    crítico):
+      <pre>binlog_expire_logs_seconds = 604800  <span class="dim"># 7 días</span></pre>
+    </li>
+    <li>Crear el usuario dedicado con privilegios mínimos (idéntico al de
+    <code class="inline">mysql-init/pos/01-schema.sql</code> del laboratorio):
+      <pre>CREATE USER 'debezium'@'%' IDENTIFIED BY '&lt;password fuerte, gestionada por el vault&gt;';
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT
+    ON *.* TO 'debezium'@'%';</pre>
+    </li>
+    <li>Verificar espacio en disco disponible para el binlog con la retención elegida.</li>
+  </ol>
+
+  <h3>3.2 — Instalar el agente Debezium Server</h3>
+  <ol>
+    <li>Descargar la distribución oficial de <code class="inline">debezium-server</code> desde
+    el proyecto Debezium, en el servidor de la sucursal (o un mini-PC/appliance junto al POS si
+    el propio servidor de venta no debe correr software adicional).</li>
+    <li>Configurar <code class="inline">conf/application.properties</code>:
+      <pre>debezium.source.connector.class=io.debezium.connector.mysql.MySqlConnector
+debezium.source.database.hostname=localhost
+debezium.source.database.port=3306
+debezium.source.database.user=debezium
+debezium.source.database.password=${vault:debezium/sucursalNN/db_password}
+debezium.source.database.server.id=&lt;único por sucursal — llevar registro central&gt;
+debezium.source.topic.prefix=pos.sucursalNN
+debezium.source.table.include.list=pos_sucursalNN.medicamentos,pos_sucursalNN.ventas,...
+debezium.source.snapshot.mode=when_needed
+
+debezium.sink.type=kafka
+debezium.sink.kafka.producer.bootstrap.servers=kafka-central.empresa.com:9093
+debezium.sink.kafka.producer.security.protocol=SASL_SSL
+debezium.sink.kafka.producer.sasl.mechanism=SCRAM-SHA-512</pre>
+      <div class="meaning" style="font-size:13.3px;color:var(--ink-soft)">
+      Nota sobre <code class="inline">snapshot.mode</code>: en el laboratorio se usa
+      <code class="inline">initial</code> (foto completa siempre al arrancar) porque las tablas
+      son pequeñas. En una tabla de producción con años de historial, eso puede tardar horas y
+      bloquear recursos — <code class="inline">when_needed</code> combinado con snapshots
+      incrementales evita eso.</div>
+    </li>
+    <li>Arrancar como servicio del sistema operativo (unidad <code class="inline">systemd</code>),
+    no como proceso manual — para que sobreviva a un reinicio del servidor.</li>
+    <li>Verificar: confirmar que el snapshot inicial llega al tópico correspondiente en el Kafka
+    central, y que las métricas del agente (expone JMX/Prometheus) se ven en el monitoreo.</li>
+  </ol>
+
+  <h2 class="section-head"><span class="block-title">4. Requerimientos</span></h2>
+
+  <div class="req-group">
+    <h4>Infraestructura central</h4>
+    <ul class="req-list">
+      <li><span class="k">Kafka</span><span class="v">Clúster de mínimo 3 brokers, factor de replicación ≥3 (el laboratorio usa 1 solo broker — suficiente para demostrar, no para producción)</span></li>
+      <li><span class="k">Sink</span><span class="v">Kafka Connect JDBC Sink, o una versión productizada del patrón de <code class="inline">central-sync</code> (contenedorizada, con las mismas garantías de commit manual + reintento ya validadas)</span></li>
+      <li><span class="k">Base Central</span><span class="v">PostgreSQL o Azure SQL (según lo definido originalmente) — el laboratorio usa MySQL solo por simplicidad de la demo</span></li>
+      <li><span class="k">Monitoreo</span><span class="v">Prometheus/Grafana u equivalente, con alertas reales (Slack, email, PagerDuty) conectadas a las señales que el laboratorio ya deja preparadas (ver sección 6)</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Por sucursal</h4>
+    <ul class="req-list">
+      <li><span class="k">Cómputo</span><span class="v">Suficiente para correr Debezium Server (un JVM liviano) — el propio servidor POS si tiene margen, o un mini-PC dedicado si no</span></li>
+      <li><span class="k">Red</span><span class="v">Salida a internet (TLS, puerto configurado) hacia el Kafka central — no requiere IP fija ni puerto de entrada</span></li>
+      <li><span class="k">MySQL</span><span class="v">Binlog habilitado, usuario dedicado, espacio en disco para la retención elegida</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Seguridad</h4>
+    <ul class="req-list">
+      <li><span class="k">En tránsito</span><span class="v">TLS obligatorio entre cada sucursal y el Kafka central (nunca texto plano en redes públicas)</span></li>
+      <li><span class="k">Secretos</span><span class="v">Gestor de secretos (Vault, AWS Secrets Manager, Azure Key Vault) — nada de contraseñas en archivos de configuración planos, a diferencia del laboratorio</span></li>
+      <li><span class="k">Privilegios</span><span class="v">El usuario de replicación mantiene el mismo principio mínimo ya validado: solo lectura de binlog, cero acceso de escritura a datos de negocio</span></li>
+      <li><span class="k">Rotación</span><span class="v">Proceso periódico de rotación de credenciales, coordinado entre el vault y cada sucursal</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Equipo y gobierno</h4>
+    <ul class="req-list">
+      <li><span class="k">Central</span><span class="v">Un equipo de datos/plataforma responsable del clúster Kafka, el sink y el monitoreo</span></li>
+      <li><span class="k">Sucursal</span><span class="v">Contacto de IT local (propio o de un proveedor) que pueda ejecutar la instalación inicial y responder ante una alerta de conectividad</span></li>
+      <li><span class="k">Convención de IDs</span><span class="v">Registro central de <code class="inline">database.server.id</code> y <code class="inline">topic.prefix</code> asignados — una colisión entre sucursales rompe la captura silenciosamente</span></li>
+    </ul>
+  </div>
+
+  <h2 class="section-head"><span class="block-title">5. Checklist de alta de una sucursal nueva</span></h2>
+  <p class="block-intro">Pensado para repetirse 50+ veces sin sorpresas — candidato directo a automatizarse como playbook una vez validado a mano las primeras 2 o 3 veces.</p>
+  <ul class="checklist">
+    <li><span class="box"></span>Confirmar versión de MySQL y espacio en disco disponible</li>
+    <li><span class="box"></span>Habilitar binlog ROW + GTID, ajustar retención</li>
+    <li><span class="box"></span>Crear el usuario <code class="inline">debezium</code> dedicado, con password generada en el vault</li>
+    <li><span class="box"></span>Asignar <code class="inline">server.id</code> y <code class="inline">topic.prefix</code> únicos (verificar contra el registro central)</li>
+    <li><span class="box"></span>Instalar y configurar Debezium Server</li>
+    <li><span class="box"></span>Confirmar conectividad saliente (TLS) hacia el Kafka central</li>
+    <li><span class="box"></span>Arrancar el servicio y verificar el snapshot inicial en el tópico correspondiente</li>
+    <li><span class="box"></span>Confirmar que la sucursal aparece en el monitoreo y que las métricas fluyen</li>
+    <li><span class="box"></span>Hacer un cambio de prueba end-to-end y confirmar que llega a la Base Central</li>
+  </ul>
+
+  <h2 class="section-head"><span class="block-title">6. Del laboratorio a producción</span></h2>
+  <p class="block-intro">El laboratorio no es solo una demo conceptual — ya probamos en vivo varios de los mecanismos de resiliencia que la versión de producción necesita. Esto es lo que ya está validado y lo que falta.</p>
+
+  <div class="bridge-grid">
+    <div class="bridge-col have">
+      <h4>Ya validado en el laboratorio</h4>
+      <ul>
+        <li>Forma y contenido de los eventos CDC (before/after, tipos de dato, tombstones)</li>
+        <li>Consolidación de múltiples fuentes en una base central sin polling</li>
+        <li>Recuperación automática del sink ante una caída de la base destino (commit manual + reintento con backoff)</li>
+        <li>Recuperación automática de un conector caído (equivalente a <code class="inline">connector-watchdog</code>)</li>
+        <li>Heartbeat + healthcheck real del proceso de sincronización</li>
+        <li>Persistencia de los datos de Kafka ante un reinicio</li>
+      </ul>
+    </div>
+    <div class="bridge-col need">
+      <h4>Falta para producción real</h4>
+      <ul>
+        <li>Definir topología de red (Opción A vs B — sección 1)</li>
+        <li>TLS real + gestor de secretos (el laboratorio usa contraseñas en texto plano a propósito, es un entorno local)</li>
+        <li>Clúster Kafka con replicación ≥3 (el laboratorio corre 1 solo broker)</li>
+        <li>Snapshot incremental en vez de <code class="inline">initial</code> para tablas grandes</li>
+        <li>Motor destino final (Postgres/Azure SQL en vez de MySQL)</li>
+        <li>Monitoreo con alertas reales conectadas a un canal (hoy es solo una línea en el log)</li>
+        <li>Automatización del alta de sucursales (playbook, no pasos manuales)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section-head"><span class="block-title">7. Decisiones abiertas</span></h2>
+  <p class="block-intro">Estas cuatro definiciones cambian bastante el diseño final — vale la pena resolverlas antes de automatizar el rollout.</p>
+
+  <div class="decision">
+    <div class="q">¿Kafka propio o administrado?</div>
+    <div class="opts">Self-hosted (más control, más operación propia) vs. un servicio administrado tipo Confluent Cloud / Amazon MSK / Aiven (menos operación, costo recurrente distinto).</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Motor de la Base Central?</div>
+    <div class="opts">PostgreSQL, Azure SQL, o mantener MySQL — afecta qué sink usar y qué equipo la administra.</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Dónde corre Debezium Server en cada sucursal?</div>
+    <div class="opts">En el propio servidor del POS (más simple, pero comparte recursos con el sistema de venta) vs. un mini-PC/appliance dedicado junto a él (aísla el impacto, un costo de hardware adicional por sucursal).</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Cómo se gestionan 50+ IDs y prefijos sin colisiones?</div>
+    <div class="opts">Un registro central simple (hoja de cálculo controlada) vs. generarlos automáticamente a partir de un catálogo de sucursales ya existente en el negocio.</div>
+  </div>
+
+  <footer>
+    debezium-lab · arquitectura de producción · ver también: runbook de demo · informe de resolución de fallas
+  </footer>
+
+</div>

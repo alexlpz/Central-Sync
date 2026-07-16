@@ -1,0 +1,634 @@
+<title>Sincronización en Tiempo Real — Propuesta técnica</title>
+<style>
+  :root {
+    --paper: #F4F6F8;
+    --surface: #FFFFFF;
+    --surface-sunken: #EEF1F4;
+    --ink: #16212B;
+    --ink-soft: #55636F;
+    --ink-faint: #8895A1;
+    --line: #E1E7EC;
+    --accent: #2C5EA8;
+    --accent-soft: #E8EFF8;
+    --accent-ink: #FFFFFF;
+    --good: #2E9C63;
+    --good-soft: #E6F5EC;
+    --warn: #B9860F;
+    --warn-soft: #FBF1DE;
+    --critical: #C1453A;
+    --critical-soft: #FBEAE8;
+    --br1: #6E7FD1;
+    --br2: #B06BC4;
+    --br3: #2E9FA3;
+    --line-strong: #C7D0D8;
+    --db-tint: #E9EEFB; --db-ink: #3C5FB0;
+    --stream-tint: #EAF6F2; --stream-ink: #1F8C6E;
+    --app-tint: #F2EEFB; --app-ink: #6B4FB5;
+    --obs-tint: #FBF1E4; --obs-ink: #B4780F;
+    --shadow: 0 1px 2px rgba(20, 30, 40, .06), 0 8px 24px rgba(20, 30, 40, .06);
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #10151A; --surface: #171E25; --surface-sunken: #12171C;
+      --ink: #EBF0F4; --ink-soft: #94A3B0; --ink-faint: #5E6C78; --line: #263039;
+      --accent: #6FA0E6; --accent-soft: rgba(111,160,230,.14); --accent-ink: #0D1720;
+      --good: #49BC80; --good-soft: rgba(73,188,128,.13);
+      --warn: #DDAC49; --warn-soft: rgba(221,172,73,.13);
+      --critical: #E27C71; --critical-soft: rgba(226,124,113,.14);
+      --br1: #8C99E4; --br2: #CE8ADD; --br3: #4FC2C4;
+      --line-strong: #34404B;
+      --db-tint: rgba(111,160,230,.14); --db-ink: #9DB9EE;
+      --stream-tint: rgba(73,188,128,.13); --stream-ink: #7FD6B0;
+      --app-tint: rgba(180,140,230,.15); --app-ink: #C9A9EE;
+      --obs-tint: rgba(221,172,73,.14); --obs-ink: #E8C079;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #10151A; --surface: #171E25; --surface-sunken: #12171C;
+    --ink: #EBF0F4; --ink-soft: #94A3B0; --ink-faint: #5E6C78; --line: #263039;
+    --accent: #6FA0E6; --accent-soft: rgba(111,160,230,.14); --accent-ink: #0D1720;
+    --good: #49BC80; --good-soft: rgba(73,188,128,.13);
+    --warn: #DDAC49; --warn-soft: rgba(221,172,73,.13);
+    --critical: #E27C71; --critical-soft: rgba(226,124,113,.14);
+    --br1: #8C99E4; --br2: #CE8ADD; --br3: #4FC2C4;
+    --line-strong: #34404B;
+    --db-tint: rgba(111,160,230,.14); --db-ink: #9DB9EE;
+    --stream-tint: rgba(73,188,128,.13); --stream-ink: #7FD6B0;
+    --app-tint: rgba(180,140,230,.15); --app-ink: #C9A9EE;
+    --obs-tint: rgba(221,172,73,.14); --obs-ink: #E8C079;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --paper: #F4F6F8; --surface: #FFFFFF; --surface-sunken: #EEF1F4;
+    --ink: #16212B; --ink-soft: #55636F; --ink-faint: #8895A1; --line: #E1E7EC;
+    --accent: #2C5EA8; --accent-soft: #E8EFF8; --accent-ink: #FFFFFF;
+    --good: #2E9C63; --good-soft: #E6F5EC;
+    --warn: #B9860F; --warn-soft: #FBF1DE;
+    --critical: #C1453A; --critical-soft: #FBEAE8;
+    --br1: #6E7FD1; --br2: #B06BC4; --br3: #2E9FA3;
+    --line-strong: #C7D0D8;
+    --db-tint: #E9EEFB; --db-ink: #3C5FB0;
+    --stream-tint: #EAF6F2; --stream-ink: #1F8C6E;
+    --app-tint: #F2EEFB; --app-ink: #6B4FB5;
+    --obs-tint: #FBF1E4; --obs-ink: #B4780F;
+    --shadow: 0 1px 2px rgba(20,30,40,.06), 0 8px 24px rgba(20,30,40,.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  button { font-family: inherit; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 30; transition: width .3s ease; }
+
+  .deck { position: relative; height: 100vh; width: 100vw; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 56px 90px 90px;
+    overflow-y: auto;
+  }
+  .slide.active { display: flex; animation: slide-in .4s ease; }
+  @keyframes slide-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+  .slide-inner { max-width: 1060px; margin: 0 auto; width: 100%; }
+
+  .eyebrow {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .slide h2 {
+    font-family: var(--serif);
+    font-size: 33px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    max-width: 25ch;
+  }
+  .slide .lede { font-size: 15.5px; color: var(--ink-soft); max-width: 66ch; line-height: 1.6; margin: 0 0 6px; }
+
+  .deck-nav {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 10px; box-shadow: var(--shadow); z-index: 20;
+  }
+  .deck-nav button {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface-sunken);
+    color: var(--ink); cursor: pointer; font-size: 14px;
+    transition: border-color .12s ease, color .12s ease;
+  }
+  .deck-nav button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .deck-nav button:disabled { opacity: .3; cursor: default; }
+  .deck-counter { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); min-width: 48px; text-align: center; }
+
+  /* --- Cover --- */
+  .cover { justify-content: center; }
+  .cover .brandmark { display: flex; align-items: center; gap: 8px; margin-bottom: 46px; }
+  .cover .brandmark .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .cover .brandmark span { font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .cover h1 {
+    font-family: var(--serif); font-weight: 600; font-size: 52px; line-height: 1.1;
+    letter-spacing: -.015em; margin: 0 0 22px; text-wrap: balance; max-width: 17ch;
+  }
+  .cover .lede { font-size: 17px; max-width: 52ch; margin-bottom: 40px; }
+  .cover .meta-row { display: flex; gap: 28px; font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .cover .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* --- Generic flow diagram --- */
+  .flow { display: flex; align-items: stretch; gap: 0; margin: 26px 0 4px; flex-wrap: wrap; }
+  .flow-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 15px 17px; box-shadow: var(--shadow); min-width: 150px; flex: 1; }
+  .flow-box.accent { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
+  .flow-box.critical { border-color: color-mix(in srgb, var(--critical) 40%, var(--line)); background: var(--critical-soft); }
+  .flow-box .k { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); display: block; margin-bottom: 5px; }
+  .flow-box .v { font-size: 14px; font-weight: 600; }
+  .flow-box .d { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+  .flow-arrow { display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 18px; padding: 0 8px; flex-shrink: 0; }
+
+  /* --- "Antes" hub diagram (slide 2) --- */
+  .hub { display: flex; align-items: center; gap: 22px; margin: 30px 0 4px; }
+  .hub-center {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; box-shadow: var(--shadow); text-align: center; min-width: 170px;
+  }
+  .hub-center .v { font-size: 14.5px; font-weight: 700; }
+  .hub-center .d { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+  .hub-lines { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .hub-line {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 14px; box-shadow: var(--shadow);
+  }
+  .hub-line.slow { border-color: color-mix(in srgb, var(--critical) 40%, var(--line)); background: var(--critical-soft); }
+  .hub-line .name { font-size: 13px; font-weight: 600; flex: 1; }
+  .hub-line .tag { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; }
+  .hub-line .tag.ok { background: var(--good-soft); color: var(--good); }
+  .hub-line .tag.slow { background: var(--critical-soft); color: var(--critical); border: 1px solid color-mix(in srgb, var(--critical) 30%, transparent); }
+
+  /* --- Compare + verdict --- */
+  .compare { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .compare th, .compare td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .compare th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); font-weight: 700; }
+  .compare td.dim { color: var(--ink-soft); font-size: 12px; width: 18%; }
+
+  .verdict { border: 2px solid var(--accent); background: var(--accent-soft); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+  .verdict .tag-line { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 6px; }
+  .verdict .main { font-family: var(--serif); font-size: 17px; font-weight: 600; margin-bottom: 5px; }
+  .verdict .sub { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; max-width: 78ch; }
+
+  /* --- Mini roadmap strip --- */
+  .roadmap-mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
+  .rm { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; box-shadow: var(--shadow); }
+  .rm .n { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--accent); }
+  .rm .t { font-size: 11.5px; font-weight: 700; margin: 2px 0 2px; }
+  .rm .d { font-size: 10.5px; color: var(--ink-soft); line-height: 1.4; }
+
+  /* --- Technical architecture diagram (slide 4) --- */
+  .wide-inner { max-width: 980px; }
+  .diagram-wrap { overflow-x: auto; margin: 18px 0 12px; }
+  svg.arch-diagram { width: 100%; min-width: 780px; height: auto; display: block; }
+  .arch-diagram .node {
+    width: 100%; height: 100%; box-sizing: border-box;
+    background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 10px 13px; position: relative; font-family: var(--sans);
+  }
+  .arch-diagram .node.accent-node { border-color: var(--accent); background: var(--accent-soft); }
+  .arch-diagram .node-head { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; padding-right: 46px; }
+  .arch-diagram .icon-tile { width: 27px; height: 27px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .arch-diagram .icon-tile svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .arch-diagram .icon-tile.db { background: var(--db-tint); color: var(--db-ink); }
+  .arch-diagram .icon-tile.stream { background: var(--stream-tint); color: var(--stream-ink); }
+  .arch-diagram .icon-tile.app { background: var(--app-tint); color: var(--app-ink); }
+  .arch-diagram .icon-tile.obs { background: var(--obs-tint); color: var(--obs-ink); }
+  .arch-diagram .node-name { font-size: 12.5px; font-weight: 700; line-height: 1.2; color: var(--ink); }
+  .arch-diagram .node-image { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); margin-top: 1px; }
+  .arch-diagram .port-badge {
+    position: absolute; top: 8px; right: 9px;
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    background: var(--surface-sunken); border: 1px solid var(--line); color: var(--ink-soft);
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .arch-diagram .port-badge.exposed { color: var(--accent); border-color: var(--accent); }
+  .arch-diagram .node-detail { font-size: 9.7px; color: var(--ink-soft); line-height: 1.4; margin-top: 5px; }
+  .arch-diagram .node-detail code { font-family: var(--mono); font-size: 9.3px; background: var(--surface-sunken); padding: 0 4px; border-radius: 3px; color: var(--ink); }
+  .arch-diagram .connector-chips { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+  .arch-diagram .chip { font-family: var(--mono); font-size: 8.3px; font-weight: 600; background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--ink-soft); }
+  .edge-line { fill: none; stroke: var(--ink-faint); stroke-width: 1.8; }
+  .edge-line.main { stroke: var(--accent); stroke-width: 2.2; }
+  .edge-line.dashed { stroke-dasharray: 5 4; stroke: var(--ink-faint); }
+  .edge-label-bg { fill: var(--paper); }
+  .edge-label { fill: var(--ink-soft); font-family: var(--sans); font-size: 11.5px; font-weight: 600; }
+  .edge-label.main { fill: var(--accent); }
+  .zone-tag { fill: var(--ink-faint); font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .diagram-legend {
+    display: flex; flex-wrap: wrap; gap: 16px 22px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 18px; box-shadow: var(--shadow); font-size: 11.5px; color: var(--ink-soft);
+  }
+  .diagram-legend .legend-item { display: flex; align-items: center; gap: 8px; }
+  .diagram-legend .legend-line { width: 24px; height: 0; border-top: 2.5px solid var(--accent); }
+  .diagram-legend .legend-line.dashed { border-top: 2px dashed var(--ink-faint); }
+  .diagram-legend .swatch { width: 11px; height: 11px; border-radius: 4px; }
+  .diagram-legend .badge-sample { font-family: var(--mono); font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-sunken); color: var(--ink-soft); }
+  .diagram-legend .badge-sample.exposed { color: var(--accent); border-color: var(--accent); }
+
+  /* --- Requirements table --- */
+  .req-sub { font-family: var(--sans); font-size: 12.5px; font-weight: 700; color: var(--ink); margin: 18px 0 8px; }
+  .req-sub:first-of-type { margin-top: 14px; }
+  .req-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+  .req-table th, .req-table td { text-align: left; padding: 6px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .req-table th { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); font-weight: 700; }
+  .req-table td.comp { font-weight: 600; width: 22%; }
+  .req-table td.mono { font-family: var(--mono); font-size: 11.5px; }
+  .measured-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700;
+    color: var(--good); background: var(--good-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 6px;
+  }
+  .req-note { font-size: 11px; color: var(--ink-faint); margin-top: 10px; max-width: 78ch; line-height: 1.45; }
+
+  .bullets { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .bullets li { display: flex; gap: 12px; font-size: 14px; line-height: 1.5; max-width: 66ch; }
+  .bullets li::before { content: "—"; color: var(--accent); flex-shrink: 0; font-weight: 700; }
+
+  .closing h2 { max-width: none; }
+  .cta-row { display: flex; gap: 14px; margin-top: 28px; }
+  .cta { font-size: 13.5px; font-weight: 700; padding: 11px 22px; border-radius: 8px; cursor: default; }
+  .cta.primary { background: var(--accent); color: var(--accent-ink); }
+  .cta.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-soft); }
+
+  @media (max-width: 900px) {
+    .slide { padding: 40px 26px 90px; }
+    .roadmap-mini { grid-template-columns: repeat(2, 1fr); }
+    .hub { flex-direction: column; }
+    .cover h1 { font-size: 36px; }
+    .slide h2 { font-size: 25px; }
+  }
+</style>
+
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1. Portada -->
+  <section class="slide cover" data-index="1">
+    <div class="slide-inner">
+      <div class="brandmark"><span class="dot"></span><span>Interware · Propuesta técnica para Superlotengo</span></div>
+      <h1>Sincronización de inventario en tiempo real</h1>
+      <p class="lede">Cómo eliminar la latencia de consultar el POS en vivo, y llevar la solución a producción a escala real.</p>
+      <div class="meta-row">
+        <span><strong>Estado:</strong> laboratorio validado</span>
+        <span><strong>Escala objetivo:</strong> red completa de sucursales</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Introducción / el problema real -->
+  <section class="slide" data-index="2">
+    <div class="slide-inner">
+      <span class="eyebrow">Introducción</span>
+      <h2>El punto débil: consultar el POS en vivo</h2>
+      <p class="lede">Según el entendimiento de la última sesión: hoy el portal de Superlotengo consulta 4 bases de datos en vivo para armar lo que ve el usuario. El eslabón más débil es consultar directamente el POS de cada sucursal para inventario y costos — esas consultas son lentas, y esa latencia se traslada directo a la experiencia del usuario.</p>
+      <div class="hub">
+        <div class="hub-center"><span class="v">Portal Superlotengo</span><span class="d">consulta en vivo, cada vez</span></div>
+        <div class="hub-lines">
+          <div class="hub-line"><span class="name">Base de datos A</span><span class="tag ok">Rápida</span></div>
+          <div class="hub-line"><span class="name">Base de datos B</span><span class="tag ok">Rápida</span></div>
+          <div class="hub-line slow"><span class="name">POS de sucursal — inventario y costos</span><span class="tag slow">Cuello de botella</span></div>
+        </div>
+      </div>
+      <p class="lede" style="margin-top:18px">El objetivo: que Superlotengo deje de consultar el POS en vivo, y minimizar esa latencia para tener la información disponible de forma mucho más rápida.</p>
+    </div>
+  </section>
+
+  <!-- 3. La solución propuesta -->
+  <section class="slide" data-index="3">
+    <div class="slide-inner">
+      <span class="eyebrow">La solución propuesta</span>
+      <h2>Que el POS avise, no que Superlotengo pregunte</h2>
+      <p class="lede">Cada MySQL de sucursal ya lleva su propio registro interno de cambios (el <em>binlog</em>). En vez de consultar el POS cada vez, leemos ese registro directo y mantenemos una copia local siempre al día — ahí es donde Superlotengo consulta.</p>
+      <div class="flow">
+        <div class="flow-box critical"><span class="k">Hoy</span><span class="v">POS de sucursal</span><span class="d">consulta en vivo, lenta</span></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box"><span class="k">Captura</span><span class="v">Debezium</span><span class="d">lee el binlog, sin tocar el POS</span></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box"><span class="k">Transporte</span><span class="v">Kafka</span><span class="d">entrega confiable de cada cambio</span></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box accent"><span class="k">Mañana</span><span class="v">Base Central</span><span class="d">Superlotengo consulta aquí — local, rápida</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Arquitectura actual de la demo -->
+  <section class="slide" data-index="4">
+    <div class="slide-inner wide-inner">
+      <span class="eyebrow">Arquitectura de la demo</span>
+      <h2>Así está construida hoy, servicio por servicio</h2>
+      <p class="lede">9 contenedores Docker sobre una red interna — no es un diagrama conceptual, es la demo corriendo. Línea azul sólida = flujo principal de captura de cambios; línea punteada = monitoreo y soporte.</p>
+
+      <div class="diagram-wrap">
+        <svg class="arch-diagram" viewBox="0 0 1300 800" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow-main" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L8,4 L0,8 Z" style="fill:var(--accent)"/>
+            </marker>
+            <marker id="arrow-dashed" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L8,4 L0,8 Z" style="fill:var(--ink-faint)"/>
+            </marker>
+          </defs>
+
+          <text x="60" y="30" class="zone-tag">Sucursales (POS)</text>
+          <text x="900" y="235" class="zone-tag">Operación y visibilidad</text>
+
+          <path class="edge-line main" d="M160,170 L160,250" marker-end="url(#arrow-main)"/>
+          <path class="edge-line main" d="M400,170 L400,250" marker-end="url(#arrow-main)"/>
+          <path class="edge-line main" d="M640,170 L640,250" marker-end="url(#arrow-main)"/>
+          <rect x="330" y="200" width="140" height="18" class="edge-label-bg"/>
+          <text x="400" y="213" text-anchor="middle" class="edge-label main">CDC: lee el binlog</text>
+
+          <path class="edge-line main" d="M420,390 L420,450" marker-end="url(#arrow-main)"/>
+          <rect x="430" y="410" width="70" height="18" class="edge-label-bg"/>
+          <text x="465" y="423" text-anchor="middle" class="edge-label main">eventos</text>
+
+          <path class="edge-line main" d="M420,570 L420,610 L250,610 L250,650" marker-end="url(#arrow-main)"/>
+          <rect x="255" y="595" width="130" height="18" class="edge-label-bg"/>
+          <text x="320" y="608" text-anchor="middle" class="edge-label main">consume, aplica</text>
+
+          <path class="edge-line main" d="M360,705 L420,705" marker-end="url(#arrow-main)"/>
+
+          <path class="edge-line dashed" d="M900,320 L700,320" marker-end="url(#arrow-dashed)"/>
+          <rect x="745" y="309" width="65" height="16" class="edge-label-bg"/>
+          <text x="778" y="321" text-anchor="middle" class="edge-label">vigila</text>
+
+          <path class="edge-line dashed" d="M900,510 L590,510" marker-end="url(#arrow-dashed)"/>
+          <rect x="695" y="499" width="95" height="16" class="edge-label-bg"/>
+          <text x="742" y="511" text-anchor="middle" class="edge-label">inspecciona</text>
+
+          <path class="edge-line dashed" d="M1060,650 L1060,560 L590,560" marker-end="url(#arrow-dashed)"/>
+          <rect x="775" y="549" width="80" height="16" class="edge-label-bg"/>
+          <text x="815" y="561" text-anchor="middle" class="edge-label">consume</text>
+
+          <path class="edge-line dashed" d="M900,705 L660,705" marker-end="url(#arrow-dashed)"/>
+          <rect x="700" y="694" width="115" height="16" class="edge-label-bg"/>
+          <text x="757" y="706" text-anchor="middle" class="edge-label">lee 1 vez al iniciar</text>
+
+          <path class="edge-line dashed" d="M1220,705 L1260,705 L1260,20 L620,20 L620,60" marker-end="url(#arrow-dashed)"/>
+          <rect x="860" y="11" width="220" height="16" class="edge-label-bg"/>
+          <text x="970" y="23" text-anchor="middle" class="edge-label">escribe: alta / edición / baja</text>
+
+          <foreignObject x="60" y="60" width="200" height="110">
+            <div class="node">
+              <div class="port-badge exposed">:3306</div>
+              <div class="node-head">
+                <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+                <div><div class="node-name">Sucursal 01</div><div class="node-image">mysql:8.0</div></div>
+              </div>
+              <div class="node-detail">binlog <code>ROW</code>+<code>GTID</code></div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="300" y="60" width="200" height="110">
+            <div class="node">
+              <div class="port-badge exposed">:3307</div>
+              <div class="node-head">
+                <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+                <div><div class="node-name">Sucursal 02</div><div class="node-image">mysql:8.0</div></div>
+              </div>
+              <div class="node-detail">binlog <code>ROW</code>+<code>GTID</code></div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="540" y="60" width="200" height="110">
+            <div class="node">
+              <div class="port-badge exposed">:3308</div>
+              <div class="node-head">
+                <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+                <div><div class="node-name">Sucursal 03</div><div class="node-image">mysql:8.0</div></div>
+              </div>
+              <div class="node-detail">binlog <code>ROW</code>+<code>GTID</code></div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="140" y="250" width="560" height="140">
+            <div class="node">
+              <div class="port-badge exposed">:8083</div>
+              <div class="node-head">
+                <div class="icon-tile app"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3.5V8h-4.5"/><path d="M6 20.5V16h4.5"/></svg></div>
+                <div><div class="node-name">Kafka Connect</div><div class="node-image">quay.io/debezium/connect:3.5</div></div>
+              </div>
+              <div class="connector-chips">
+                <span class="chip">Debezium · suc01</span>
+                <span class="chip">Debezium · suc02</span>
+                <span class="chip">Debezium · suc03</span>
+              </div>
+              <div class="node-detail">1 conector MySQL por sucursal · <code>snapshot.mode: initial</code></div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="250" y="450" width="340" height="120">
+            <div class="node">
+              <div class="port-badge exposed">:9092</div>
+              <div class="node-head">
+                <div class="icon-tile stream"><svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="1.8"/><line x1="9" y1="6" x2="19" y2="6"/><circle cx="5" cy="12" r="1.8"/><line x1="9" y1="12" x2="19" y2="12"/><circle cx="5" cy="18" r="1.8"/><line x1="9" y1="18" x2="19" y2="18"/></svg></div>
+                <div><div class="node-name">Kafka</div><div class="node-image">quay.io/debezium/kafka:3.5</div></div>
+              </div>
+              <div class="node-detail">Modo <code>KRaft</code>, 1 broker (demo) · 1 tópico por tabla/sucursal</div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="140" y="650" width="220" height="110">
+            <div class="node">
+              <div class="port-badge">interno</div>
+              <div class="node-head">
+                <div class="icon-tile app"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3.5V8h-4.5"/><path d="M6 20.5V16h4.5"/></svg></div>
+                <div><div class="node-name">central-sync</div><div class="node-image">python:3.12-slim</div></div>
+              </div>
+              <div class="node-detail">commit manual · reintento con backoff</div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="420" y="650" width="240" height="110">
+            <div class="node accent-node">
+              <div class="port-badge exposed">:3309</div>
+              <div class="node-head">
+                <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+                <div><div class="node-name">Base Central</div><div class="node-image">mysql:8.0</div></div>
+              </div>
+              <div class="node-detail">PK <code>(sucursal, id)</code></div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="900" y="250" width="320" height="140">
+            <div class="node">
+              <div class="port-badge">interno</div>
+              <div class="node-head">
+                <div class="icon-tile obs"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></div>
+                <div><div class="node-name">connector-watchdog</div><div class="node-image">python:3.12-slim</div></div>
+              </div>
+              <div class="node-detail">recupera conectores <code>FAILED</code> / <code>UNASSIGNED</code></div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="900" y="450" width="320" height="120">
+            <div class="node">
+              <div class="port-badge exposed">:9000</div>
+              <div class="node-head">
+                <div class="icon-tile obs"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6.5"/><line x1="20.5" y1="20.5" x2="14.8" y2="14.8"/></svg></div>
+                <div><div class="node-name">Kafdrop</div><div class="node-image">obsidiandynamics/kafdrop</div></div>
+              </div>
+              <div class="node-detail">UI web para ver tópicos y mensajes</div>
+            </div>
+          </foreignObject>
+
+          <foreignObject x="900" y="650" width="320" height="110">
+            <div class="node">
+              <div class="port-badge exposed">:8090</div>
+              <div class="node-head">
+                <div class="icon-tile obs"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="6.3" cy="6.7" r=".9" fill="currentColor" stroke="none"/><circle cx="9" cy="6.7" r=".9" fill="currentColor" stroke="none"/></svg></div>
+                <div><div class="node-name">live-dashboard</div><div class="node-image">FastAPI + WebSocket</div></div>
+              </div>
+              <div class="node-detail">portal en vivo para el cliente</div>
+            </div>
+          </foreignObject>
+        </svg>
+      </div>
+
+      <div class="diagram-legend">
+        <div class="legend-item"><span class="legend-line"></span> Flujo principal (CDC)</div>
+        <div class="legend-item"><span class="legend-line dashed"></span> Monitoreo / soporte</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--db-tint)"></span> Base de datos</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--stream-tint)"></span> Transporte de eventos</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--app-tint)"></span> Aplicación / conector</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--obs-tint)"></span> Operación y visibilidad</div>
+        <div class="legend-item"><span class="badge-sample exposed">:puerto</span> expuesto al host</div>
+        <div class="legend-item"><span class="badge-sample">interno</span> solo red docker-compose</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Cómo implementarlo en producción -->
+  <section class="slide" data-index="5">
+    <div class="slide-inner">
+      <span class="eyebrow">Cómo implementarlo en producción</span>
+      <h2>La decisión clave: ¿quién se conecta hacia quién?</h2>
+      <table class="compare">
+        <tr><th></th><th>Opción A — Centralizado</th><th>Opción B — Agente por sucursal</th></tr>
+        <tr><td class="dim">Conexión</td><td>El centro llega a cada sucursal</td><td>Cada sucursal llega al centro</td></tr>
+        <tr><td class="dim">Red</td><td>Requiere ruta de entrada por sucursal</td><td>Tráfico saliente estándar</td></tr>
+        <tr><td class="dim">A escala</td><td>Un clúster, cuello de botella compartido</td><td>Falla aislada por sucursal</td></tr>
+      </table>
+      <div class="verdict">
+        <span class="tag-line">Recomendación a escala de red completa</span>
+        <div class="main">Opción B — un agente liviano por sucursal</div>
+        <div class="sub">Un clúster central y cientos de rutas de red de entrada dejan de ser una preferencia operativa y se vuelven un límite técnico duro. Un agente por sucursal aísla cada falla y usa tráfico saliente estándar.</div>
+      </div>
+      <div class="roadmap-mini">
+        <div class="rm"><span class="n">1</span><p class="t">Piloto</p><p class="d">5–10 sucursales reales</p></div>
+        <div class="rm"><span class="n">2</span><p class="t">Automatización</p><p class="d">Playbook de alta + identidad</p></div>
+        <div class="rm"><span class="n">3</span><p class="t">Rollout</p><p class="d">Despliegue escalonado</p></div>
+        <div class="rm"><span class="n">4</span><p class="t">Operación</p><p class="d">Monitoreo + alertas reales</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Requisitos mínimos de infraestructura -->
+  <section class="slide" data-index="6">
+    <div class="slide-inner">
+      <span class="eyebrow">Requisitos mínimos de infraestructura</span>
+      <h2>Qué necesita esta solución para correr</h2>
+
+      <h3 class="req-sub">Clúster centralizado — como corre hoy la demo</h3>
+      <span class="measured-badge">● Medido en vivo en la demo actual</span>
+      <table class="req-table">
+        <tr><th>Componente</th><th>Medido hoy (3 sucursales, en reposo)</th><th>Consideración en producción</th></tr>
+        <tr><td class="comp">Debezium / Kafka Connect</td><td class="mono">~594 MB RAM · 1.3% CPU</td><td>Un clúster compartido — cuello de botella a escala completa</td></tr>
+        <tr><td class="comp">Kafka (broker)</td><td class="mono">~908 MB RAM · 3% CPU</td><td>Producción: 3+ brokers con replicación real</td></tr>
+        <tr><td class="comp">Sincronización a Central</td><td class="mono">~22 MB RAM · &lt;1% CPU</td><td>Escalable horizontalmente si hace falta</td></tr>
+        <tr><td class="comp">MySQL por sucursal</td><td class="mono">~230 MB RAM · 2.2% CPU</td><td>Solo requiere binlog activado + retención ajustada</td></tr>
+        <tr><td class="comp">Red por sucursal</td><td class="mono">—</td><td>Entrante — requiere ruta de red hacia cada sucursal</td></tr>
+      </table>
+
+      <h3 class="req-sub">Opción B — agente por sucursal (recomendada a escala completa)</h3>
+      <span class="measured-badge">● Medido en este laboratorio con Debezium Server standalone</span>
+      <table class="req-table">
+        <tr><th>Componente</th><th>Medido (1 agente aislado, en reposo)</th><th>Consideración en producción</th></tr>
+        <tr><td class="comp">Debezium Server (agente)</td><td class="mono">~354 MB RAM · ~1% CPU</td><td>Un proceso propio por sucursal — nada compartido, ninguna falla se propaga entre sitios</td></tr>
+        <tr><td class="comp">MySQL por sucursal</td><td class="mono">~230 MB RAM · 2.2% CPU</td><td>Sin cambios — el mismo binlog que ya usa la sucursal</td></tr>
+        <tr><td class="comp">Kafka + Sincronización a Central</td><td class="mono">~930 MB RAM · ~3% CPU</td><td>Un único destino en el centro, sin importar cuántas sucursales se sumen</td></tr>
+        <tr><td class="comp">Red por sucursal</td><td class="mono">—</td><td>Saliente (HTTPS/TLS) — igual que el cobro con tarjeta, nunca se abre entrada</td></tr>
+      </table>
+      <p class="req-note">El costo total a escala completa es la suma de N agentes livianos (uno por sucursal) en vez de un clúster central compartido — pero cada agente pesa menos que un worker de Kafka Connect, y una falla queda aislada a una sola sucursal. Ambas mediciones son del mismo laboratorio, con 1 sucursal de prueba — no son carga de producción. El dimensionamiento real (memoria por agente, tamaño del clúster de Kafka en el centro) se define con una prueba de carga durante el piloto (Fase 1).</p>
+    </div>
+  </section>
+
+  <!-- 7. Cierre -->
+  <section class="slide closing" data-index="7">
+    <div class="slide-inner">
+      <span class="eyebrow">Próximo paso</span>
+      <h2>¿Lo vemos funcionando ahora mismo?</h2>
+      <p class="lede">El portal está listo para una demo en vivo: un cambio real en una sucursal, la Central reaccionando en segundos.</p>
+      <div class="cta-row">
+        <span class="cta primary">Agendar demo en vivo</span>
+        <span class="cta ghost">Revisar documentación técnica</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="deck-nav">
+    <button id="prev-btn" type="button" aria-label="Diapositiva anterior">←</button>
+    <span class="deck-counter"><span id="current-slide">1</span> / <span id="total-slides">1</span></span>
+    <button id="next-btn" type="button" aria-label="Siguiente diapositiva">→</button>
+  </div>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const total = slides.length;
+  let idx = 1;
+  document.getElementById("total-slides").textContent = total;
+
+  function render() {
+    slides.forEach((s) => s.classList.toggle("active", Number(s.dataset.index) === idx));
+    document.getElementById("current-slide").textContent = idx;
+    document.getElementById("progress").style.width = `${(idx / total) * 100}%`;
+    document.getElementById("prev-btn").disabled = idx === 1;
+    document.getElementById("next-btn").disabled = idx === total;
+  }
+
+  function go(delta) {
+    idx = Math.min(total, Math.max(1, idx + delta));
+    render();
+  }
+
+  document.getElementById("prev-btn").addEventListener("click", () => go(-1));
+  document.getElementById("next-btn").addEventListener("click", () => go(1));
+  document.addEventListener("keydown", (e) => {
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); go(1); }
+    if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); go(-1); }
+  });
+
+  render();
+</script>

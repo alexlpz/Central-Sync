@@ -1,0 +1,475 @@
+<title>Informe — Fallas resueltas en debezium-lab</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --paper: #ffffff;
+    --ink: #171b26;
+    --ink-soft: #4b5568;
+    --ink-faint: #7c8798;
+    --accent: #0e7a72;
+    --accent-ink: #075a54;
+    --accent-soft: #e4f1ef;
+    --line: #dbdfe6;
+    --line-soft: #eaecf0;
+    --ok: #2f8f4e;
+    --ok-soft: #e6f4ea;
+    --warn: #b8790c;
+    --warn-soft: #fbf0dd;
+    --bad: #c4432b;
+    --bad-soft: #fbeae6;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  header.doc-head {
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 22px;
+    margin-bottom: 36px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 10px 0 8px;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .doc-sub {
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    max-width: 62ch;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 22px;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    flex-wrap: wrap;
+  }
+  .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* summary table */
+  .summary {
+    margin: 28px 0 48px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .summary-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13.5px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row a { color: var(--ink); text-decoration: none; font-weight: 600; }
+  .summary-row a:hover { color: var(--accent-ink); }
+  .sev-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .sev-dot.bad { background: var(--bad); }
+  .sev-dot.warn { background: var(--warn); }
+  .status-pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--ok-soft);
+    color: var(--ok);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .scenario {
+    margin-bottom: 44px;
+    padding-left: 20px;
+    border-left: 3px solid var(--bad);
+  }
+  .scenario.warn-sev { border-left-color: var(--warn); }
+
+  .scenario-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+
+  .scenario-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+
+  .scenario h3 {
+    font-size: 19px;
+    font-weight: 700;
+    margin: 2px 0 14px;
+    text-wrap: balance;
+  }
+
+  .field {
+    margin-bottom: 14px;
+  }
+  .field .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 5px;
+  }
+  .field p {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--ink);
+    max-width: 66ch;
+  }
+  .field.fix p { color: var(--ink); }
+
+  code.inline {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    background: var(--line-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent-ink);
+  }
+
+  pre {
+    background: var(--ink);
+    color: #eef2f0;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 10px 13px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 6px 0 0;
+    line-height: 1.5;
+  }
+
+  .verify-box {
+    background: var(--accent-soft);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+  .verify-box .label { color: var(--accent-ink); }
+
+  h2.section-head {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 56px 0 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  h2.section-head .block-title {
+    display: block;
+    font-family: var(--sans);
+    font-size: 21px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .closing p { font-size: 14.5px; color: var(--ink-soft); max-width: 66ch; }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 32px 16px 64px; }
+    h1 { font-size: 24px; }
+    .summary-row { grid-template-columns: 20px 1fr; }
+    .summary-row .status-pill { grid-column: 2; justify-self: start; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">debezium-lab · informe técnico</span>
+    <h1>Fallas resueltas en el pipeline de CDC</h1>
+    <p class="doc-sub">Cinco escenarios de falla reales, encontrados y corregidos durante el
+    endurecimiento del laboratorio — qué podía salir mal, por qué, y qué se cambió para
+    que se resuelva solo.</p>
+    <div class="meta-row">
+      <span><strong>Componentes:</strong> central-sync, connector-watchdog, Kafka</span>
+      <span><strong>Escenarios:</strong> 5</span>
+      <span><strong>Todos verificados en vivo</strong></span>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="summary-row">
+      <span class="sev-dot bad"></span>
+      <a href="#s1">Pérdida silenciosa de cambios si la Base Central se cae</a>
+      <span class="status-pill">Resuelto</span>
+    </div>
+    <div class="summary-row">
+      <span class="sev-dot bad"></span>
+      <a href="#s2">El historial de Kafka desaparecía con cualquier reinicio</a>
+      <span class="status-pill">Resuelto</span>
+    </div>
+    <div class="summary-row">
+      <span class="sev-dot bad"></span>
+      <a href="#s3">Un conector caído se quedaba caído para siempre</a>
+      <span class="status-pill">Resuelto</span>
+    </div>
+    <div class="summary-row">
+      <span class="sev-dot warn"></span>
+      <a href="#s4">Una caída larga de Kafka dejaba conectores en un limbo</a>
+      <span class="status-pill">Resuelto</span>
+    </div>
+    <div class="summary-row">
+      <span class="sev-dot warn"></span>
+      <a href="#s5">central-sync no avisaba si estaba realmente vivo o en bucle</a>
+      <span class="status-pill">Resuelto</span>
+    </div>
+  </div>
+
+  <section class="scenario" id="s1">
+    <div class="scenario-head">
+      <span class="scenario-num">Escenario 1 / 5</span>
+    </div>
+    <h3>Pérdida silenciosa de cambios si la Base Central se cae</h3>
+
+    <div class="field">
+      <span class="label">Riesgo</span>
+      <p>Si <code class="inline">mysql-central</code> estaba caída (o simplemente lenta) justo cuando
+      llegaba un cambio, ese cambio se perdía para siempre — sin error visible, sin alerta.
+      La Base Central quedaba desincronizada sin que nadie lo notara hasta auditar los datos.</p>
+    </div>
+    <div class="field">
+      <span class="label">Causa raíz</span>
+      <p><code class="inline">central-sync</code> confirmaba (<em>commit</em>) los mensajes de Kafka
+      automáticamente cada pocos segundos, sin importar si la escritura en la Base Central
+      había tenido éxito. Si esa escritura fallaba, el mensaje ya estaba "consumido" desde
+      la perspectiva de Kafka — no había forma de volver a leerlo.</p>
+    </div>
+    <div class="field fix">
+      <span class="label">Corrección</span>
+      <p>Se apagó el <em>auto-commit</em>. Ahora cada mensaje se confirma <strong>únicamente
+      después</strong> de aplicarse con éxito en la Base Central. Si la escritura falla, se
+      reintenta indefinidamente con backoff exponencial (1s → 30s tope) sin avanzar al
+      siguiente mensaje — así ningún cambio puede "saltarse" a uno que falló antes.</p>
+    </div>
+    <div class="verify-box">
+      <span class="label" style="display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Verificado</span>
+      Se apagó la Base Central con un cambio en curso; <code class="inline">central-sync</code>
+      reintentó sin caerse ni perder el mensaje, y lo aplicó correctamente al restaurar el servicio.
+    </div>
+  </section>
+
+  <section class="scenario" id="s2">
+    <div class="scenario-head">
+      <span class="scenario-num">Escenario 2 / 5</span>
+    </div>
+    <h3>El historial de Kafka desaparecía con cualquier reinicio</h3>
+
+    <div class="field">
+      <span class="label">Riesgo</span>
+      <p>Un simple <code class="inline">docker compose down</code> (sin siquiera el flag
+      <code class="inline">-v</code> de borrar volúmenes) borraba por completo el historial de
+      eventos de Kafka. Un reinicio rutinario del ambiente equivalía a perder todo lo capturado.</p>
+    </div>
+    <div class="field">
+      <span class="label">Causa raíz</span>
+      <p>El servicio <code class="inline">kafka</code> no tenía ningún volumen declarado en
+      <code class="inline">docker-compose.yml</code> — a diferencia de las 4 bases MySQL, que sí
+      persistían sus datos. Los tópicos y sus mensajes vivían solo dentro del contenedor.</p>
+    </div>
+    <div class="field fix">
+      <span class="label">Corrección</span>
+      <p>Se agregaron dos volúmenes nombrados (<code class="inline">kafka-data</code>,
+      <code class="inline">kafka-logs</code>), mapeados a las mismas rutas que la imagen ya usa
+      internamente (<code class="inline">/kafka/data</code>, <code class="inline">/kafka/logs</code>).
+      Mismo patrón que ya seguían los 4 servicios MySQL.</p>
+    </div>
+    <div class="verify-box">
+      <span class="label" style="display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Verificado</span>
+      Se generaron cambios, se corrió <code class="inline">docker compose down</code> (sin
+      <code class="inline">-v</code>) y <code class="inline">up</code> de nuevo — el historial
+      de tópicos en Kafdrop seguía intacto.
+    </div>
+  </section>
+
+  <section class="scenario" id="s3">
+    <div class="scenario-head">
+      <span class="scenario-num">Escenario 3 / 5</span>
+    </div>
+    <h3>Un conector caído se quedaba caído para siempre</h3>
+
+    <div class="field">
+      <span class="label">Riesgo</span>
+      <p>Si el conector Debezium de una sucursal (o alguna de sus tareas) fallaba — por ejemplo,
+      si el MySQL de esa sucursal se caía un momento — quedaba en estado <code class="inline">FAILED</code>
+      de forma indefinida, incluso después de que el problema original ya se hubiera resuelto.
+      Requería que alguien llamara manualmente a la API de reinicio de Kafka Connect.</p>
+    </div>
+    <div class="field">
+      <span class="label">Causa raíz</span>
+      <p>Es un comportamiento de diseño de Kafka Connect: nunca reintenta solo un conector o
+      tarea en <code class="inline">FAILED</code>. Sin nadie vigilando activamente, esa sucursal
+      simplemente dejaba de sincronizarse con la Base Central hasta la próxima revisión manual.</p>
+    </div>
+    <div class="field fix">
+      <span class="label">Corrección</span>
+      <p>Nuevo servicio, <code class="inline">connector-watchdog</code>: cada 15 segundos revisa
+      el estado de los 3 conectores vía la API REST, y si encuentra alguno en
+      <code class="inline">FAILED</code> dispara su reinicio con backoff exponencial por
+      conector (30s → 15 min tope). Después de 5 intentos seguidos sin éxito, deja una alerta
+      explícita en el log para revisión manual, sin dejar de reintentar.</p>
+    </div>
+    <div class="verify-box">
+      <span class="label" style="display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Verificado</span>
+      Se apagó el MySQL de una sucursal y se forzó el fallo del conector — se recuperó solo en
+      25–35 segundos al restaurar el servicio, sin ninguna llamada manual a la API.
+    </div>
+  </section>
+
+  <section class="scenario warn-sev" id="s4">
+    <div class="scenario-head">
+      <span class="scenario-num">Escenario 4 / 5</span>
+    </div>
+    <h3>Una caída larga de Kafka dejaba conectores en un limbo</h3>
+
+    <div class="field">
+      <span class="label">Riesgo</span>
+      <p>Al apagar Kafka por completo (no solo el MySQL de una sucursal) y luego restaurarlo,
+      los 3 conectores quedaban en estado <code class="inline">UNASSIGNED</code> — ni
+      <code class="inline">RUNNING</code> ni <code class="inline">FAILED</code>. La primera
+      versión de <code class="inline">connector-watchdog</code> solo sabía reaccionar ante
+      <code class="inline">FAILED</code>, así que este estado intermedio no lo tocaba: se
+      quedaba atorado hasta borrar y recrear los conectores a mano.</p>
+    </div>
+    <div class="field">
+      <span class="label">Causa raíz</span>
+      <p><code class="inline">UNASSIGNED</code> es un estado de coordinación interna de Kafka
+      Connect (falta de asignación a un worker durante un rebalanceo). Normalmente dura una
+      fracción de segundo, pero tras una caída prolongada de Kafka puede quedarse atorado sin
+      que un simple reinicio del conector lo resuelva.</p>
+    </div>
+    <div class="field fix">
+      <span class="label">Corrección</span>
+      <p>Se amplió <code class="inline">connector-watchdog</code> con una respuesta escalonada
+      específica para <code class="inline">UNASSIGNED</code>: reinicio suave (conector + todas
+      sus tareas) a los 60 segundos atorado, y si eso no alcanza, recreación forzada — borrar el
+      conector y volverlo a registrar desde su configuración JSON original — a los 300 segundos,
+      con un margen de 5 minutos entre recreaciones forzadas consecutivas.</p>
+    </div>
+    <div class="verify-box">
+      <span class="label" style="display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Verificado</span>
+      Se repitió la caída total de Kafka dos veces; en ambas los 3 conectores volvieron solos a
+      <code class="inline">RUNNING</code> (vía el reinicio suave, sin necesitar la recreación
+      forzada) en un lapso de ~4–5 minutos — más lento que el escenario 3, por eso se sigue
+      recomendando la caída de un MySQL de sucursal para demos en vivo.
+    </div>
+  </section>
+
+  <section class="scenario warn-sev" id="s5">
+    <div class="scenario-head">
+      <span class="scenario-num">Escenario 5 / 5</span>
+    </div>
+    <h3>central-sync no avisaba si estaba realmente vivo o en bucle</h3>
+
+    <div class="field">
+      <span class="label">Riesgo</span>
+      <p>Tres puntos ciegos de observabilidad: (a) Docker solo sabía que el proceso
+      <em>arrancó</em>, no que seguía activo de verdad; (b) un error no previsto en el loop
+      principal podía tumbar el proceso entero, dependiendo únicamente de que Docker lo
+      reiniciara; (c) si <code class="inline">central-sync</code> entraba en un ciclo de
+      caerse-y-reiniciarse, no había ninguna señal que lo hiciera evidente en los logs.</p>
+    </div>
+    <div class="field">
+      <span class="label">Causa raíz</span>
+      <p>Faltaba instrumentación básica de robustez — el proceso funcionaba bien en el camino
+      feliz, pero no tenía forma de reportar su propio estado de salud ni de contener fallas
+      imprevistas fuera de los dos tipos de error ya manejados (conexión a la Base Central,
+      contenido de mensaje).</p>
+    </div>
+    <div class="field fix">
+      <span class="label">Corrección</span>
+      <p>Tres mejoras: <strong>(1)</strong> un archivo de heartbeat que se actualiza en cada
+      vuelta del loop (incluso durante un reintento largo), leído por un
+      <code class="inline">healthcheck</code> de Docker — ahora <code class="inline">central-sync</code>
+      aparece <code class="inline">healthy</code>/<code class="inline">unhealthy</code> igual que
+      las bases MySQL. <strong>(2)</strong> una red de seguridad (<code class="inline">try/except</code>)
+      alrededor de todo el loop principal, que registra cualquier error no anticipado y continúa
+      en vez de tumbar el proceso. <strong>(3)</strong> detección de reinicios repetidos: si el
+      proceso arranca 5+ veces en 10 minutos, deja una alerta <code class="inline">CRITICAL</code>
+      explícita en el log — solo una señal para quien esté monitoreando, no una notificación activa.</p>
+    </div>
+    <div class="verify-box">
+      <span class="label" style="display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:4px;">Verificado</span>
+      <code class="inline">central-sync</code> se mantuvo <code class="inline">healthy</code> los
+      45 segundos completos de una caída de la Base Central; 5 reinicios forzados seguidos
+      produjeron la alerta <code class="inline">ALERTA: posible crash-loop</code> en el log.
+    </div>
+  </section>
+
+  <section class="closing">
+    <h2 class="section-head"><span class="block-title">En conjunto</span></h2>
+    <p>Ninguno de estos escenarios requiere ya intervención manual para resolverse — el pipeline
+    se recupera solo ante la caída de la Base Central, de un conector individual, o de Kafka
+    completo, y ahora deja señales claras de su propio estado de salud. Lo que sigue fuera de
+    alcance de este laboratorio (a propósito): garantías <em>exactly-once</em> reales, un clúster
+    de Kafka con replicación (hoy es un solo broker), y conectar la alerta de crash-loop a un
+    canal de notificación real — todo eso son decisiones de la infraestructura de producción, no
+    del código de este demo.</p>
+  </section>
+
+  <footer>
+    debezium-lab · informe de resolución de fallas · ver también: runbook de demo
+  </footer>
+
+</div>

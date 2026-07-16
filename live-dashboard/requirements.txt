@@ -1,0 +1,5 @@
+fastapi>=0.110,<1
+uvicorn[standard]>=0.29,<1
+confluent-kafka>=2.3,<3
+mysql-connector-python>=8.4,<10
+docker>=7,<8

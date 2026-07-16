@@ -1,0 +1,5 @@
+{
+  "env": {
+    "PATH": "/Users/alopez/.local/bin:/Users/alopez/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  }
+}

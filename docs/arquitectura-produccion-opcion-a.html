@@ -1,0 +1,458 @@
+<title>Arquitectura de producción (Opción A) — debezium-lab</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --paper: #ffffff;
+    --ink: #171b26;
+    --ink-soft: #4b5568;
+    --ink-faint: #7c8798;
+    --accent: #0e7a72;
+    --accent-ink: #075a54;
+    --accent-soft: #e4f1ef;
+    --line: #dbdfe6;
+    --line-soft: #eaecf0;
+    --ok: #2f8f4e;
+    --ok-soft: #e6f4ea;
+    --warn: #b8790c;
+    --warn-soft: #fbf0dd;
+    --bad: #c4432b;
+    --bad-soft: #fbeae6;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 820px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  header.doc-head { border-bottom: 3px solid var(--ink); padding-bottom: 22px; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--accent-ink); font-weight: 600;
+  }
+  h1 {
+    font-family: var(--mono); font-size: 29px; font-weight: 700; letter-spacing: -0.01em;
+    margin: 10px 0 8px; text-wrap: balance; color: var(--ink);
+  }
+  .doc-sub { color: var(--ink-soft); font-size: 15.5px; max-width: 66ch; }
+  .meta-row {
+    display: flex; gap: 22px; margin-top: 16px; font-family: var(--mono);
+    font-size: 12px; color: var(--ink-faint); flex-wrap: wrap;
+  }
+  .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  h2.section-head {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 56px 0 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  h2.section-head .block-title {
+    display: block; font-family: var(--sans); font-size: 22px; letter-spacing: 0;
+    text-transform: none; color: var(--ink); font-weight: 700; margin-top: 4px;
+  }
+  .block-intro { color: var(--ink-soft); font-size: 14.5px; margin: 14px 0 22px; max-width: 68ch; }
+
+  h3 { font-size: 16.5px; font-weight: 700; margin: 30px 0 10px; }
+  h3.sub { font-size: 14.5px; margin: 22px 0 8px; color: var(--ink-soft); font-family: var(--mono); letter-spacing: .01em; }
+
+  p { max-width: 68ch; font-size: 14.5px; }
+  ul, ol { max-width: 68ch; font-size: 14.5px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+
+  code.inline {
+    font-family: var(--mono); font-size: 0.9em; background: var(--line-soft);
+    padding: 1px 5px; border-radius: 3px; color: var(--accent-ink);
+  }
+  pre {
+    background: var(--ink); color: #eef2f0; font-family: var(--mono); font-size: 12.8px;
+    padding: 12px 14px; border-radius: 4px; overflow-x: auto; margin: 10px 0; line-height: 1.55;
+  }
+  pre .dim { color: #8fa39c; }
+
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.3px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 10.3px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  td.mono { font-family: var(--mono); font-size: 12.8px; }
+  tr.reco td:first-child { position: relative; }
+  .reco-tag {
+    display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .05em;
+    text-transform: uppercase; background: var(--accent); color: #fff; padding: 2px 6px;
+    border-radius: 3px; margin-left: 8px; vertical-align: middle;
+  }
+
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--ink); background: var(--paper);
+    padding: 14px 16px; border-radius: 0 4px 4px 0; font-size: 14px; color: var(--ink-soft); margin: 18px 0;
+  }
+  .callout strong { color: var(--ink); }
+  .callout.reco { border-left-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+  .callout.risk { border-left-color: var(--warn); background: var(--warn-soft); color: var(--ink); }
+
+  .diagram {
+    font-family: var(--mono); font-size: 12.5px; background: var(--ink); color: #dfe7e4;
+    padding: 20px 18px; border-radius: 6px; overflow-x: auto; white-space: pre; line-height: 1.6; margin: 16px 0;
+  }
+  .diagram .hl { color: #7fd8cd; }
+  .diagram .hl2 { color: #f0c26e; }
+
+  .req-group { margin-bottom: 30px; }
+  .req-group h4 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 10px; font-weight: 700;
+  }
+  .req-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .req-list li {
+    display: grid; grid-template-columns: 130px 1fr; gap: 14px; font-size: 13.8px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+  }
+  .req-list li:last-child { border-bottom: none; padding-bottom: 0; }
+  .req-list .k { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .req-list .v { color: var(--ink); }
+
+  .checklist { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 9px; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px; font-size: 14px; padding: 9px 12px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+  }
+  .checklist .box {
+    width: 15px; height: 15px; border: 1.5px solid var(--ink-faint); border-radius: 3px;
+    flex-shrink: 0; margin-top: 2px;
+  }
+
+  .bridge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0 8px; }
+  .bridge-col { border-radius: 4px; padding: 14px 16px; }
+  .bridge-col.have { background: var(--ok-soft); }
+  .bridge-col.need { background: var(--warn-soft); }
+  .bridge-col h4 {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+    margin: 0 0 10px; font-weight: 700;
+  }
+  .bridge-col.have h4 { color: var(--ok); }
+  .bridge-col.need h4 { color: var(--warn); }
+  .bridge-col ul { margin: 0; padding-left: 18px; font-size: 13.3px; }
+  .bridge-col li { margin-bottom: 6px; }
+  @media (max-width: 620px) { .bridge-grid { grid-template-columns: 1fr; } }
+
+  .decision {
+    border: 1px solid var(--line); border-radius: 5px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .decision .q { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; }
+  .decision .opts { font-size: 13.5px; color: var(--ink-soft); }
+
+  footer {
+    margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint);
+  }
+  @media (max-width: 560px) { .page { padding: 32px 16px 64px; } h1 { font-size: 23px; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">debezium-lab · propuesta técnica · variante Opción A</span>
+    <h1>De laboratorio a producción (Opción A): Kafka Connect centralizado</h1>
+    <p class="doc-sub">Cómo escalar el mismo patrón que ya corre en el laboratorio — un clúster de
+    Kafka Connect en el centro, con un conector por sucursal, conectándose <strong>hacia</strong>
+    cada MySQL de POS — a una red real de sucursales, asumiendo que la empresa ya cuenta con una
+    VPN corporativa madura entre el centro y cada punto de venta.</p>
+    <div class="meta-row">
+      <span><strong>Basado en:</strong> debezium-lab (el laboratorio ya es, arquitectónicamente, Opción A)</span>
+      <span><strong>Escenario objetivo:</strong> 50+ sucursales sobre VPN corporativa existente</span>
+    </div>
+  </header>
+
+  <h2 class="section-head"><span class="block-title">1. Por qué Opción A en este caso</span></h2>
+  <p class="block-intro">La decisión de fondo sigue siendo la misma que en la propuesta general:
+  <strong>¿quién se conecta hacia quién?</strong> Este documento desarrolla la rama que se deja de
+  lado en la propuesta basada en Opción B.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th style="width:22%">&nbsp;</th>
+        <th>Opción A — Kafka Connect centralizado</th>
+        <th>Opción B — Debezium Server por sucursal</th>
+      </tr>
+      <tr>
+        <td>Cómo funciona</td>
+        <td>Un clúster de Kafka Connect en el centro corre un conector por sucursal (es el modelo
+        exacto del laboratorio, con las 3 sucursales en la misma red Docker)</td>
+        <td>Un proceso liviano (<code class="inline">Debezium Server</code>) instalado junto a
+        cada MySQL de sucursal, que empuja los eventos directo al Kafka central</td>
+      </tr>
+      <tr>
+        <td>Dirección de la conexión</td>
+        <td>El centro se conecta <strong>hacia</strong> cada sucursal — necesita una ruta de
+        entrada a cada MySQL de POS</td>
+        <td>Cada sucursal se conecta <strong>hacia afuera</strong>, al Kafka central — no requiere
+        abrir ningún puerto de entrada</td>
+      </tr>
+      <tr>
+        <td>Firewall / NAT en la sucursal</td>
+        <td>Requiere una ruta entrante permanente por sucursal — asumible sin fricción si ya existe
+        una VPN corporativa, porque la ruta corre dentro del túnel, no contra internet abierto</td>
+        <td>Tráfico saliente por HTTPS/TLS estándar — compatible con el firewall típico de una
+        sucursal de retail sin cambios especiales</td>
+      </tr>
+      <tr>
+        <td>Ante una sucursal caída o sin internet</td>
+        <td>El conector de esa sucursal queda <code class="inline">FAILED</code> en el centro; no
+        hay agente local reintentando — la recuperación depende de que la sucursal vuelva y el
+        centro reconecte (lo que <code class="inline">connector-watchdog</code> ya automatiza)</td>
+        <td>El agente local sigue leyendo el binlog aunque no haya salida a internet, y reintenta
+        el envío solo — tolera mejor una conexión intermitente</td>
+      </tr>
+      <tr class="reco">
+        <td>Cuándo tiene sentido</td>
+        <td colspan="2"><strong>Opción A</strong> es la elección correcta cuando ya existe una VPN
+        corporativa madura conectando todas las sucursales al centro <span class="reco-tag">este documento</span>
+        — es más simple de operar (un solo lugar para administrar todos los conectores, nada que
+        instalar ni mantener en cada sucursal) y es exactamente lo que el laboratorio ya modela.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="callout">Si la VPN corporativa <strong>no</strong> existe todavía o la conectividad de
+  las sucursales es inestable/intermitente, conviene revisar la propuesta basada en Opción B
+  (<code class="inline">arquitectura-produccion.html</code>) — ahí el agente local tolera mucho
+  mejor una sucursal que se cae o pierde internet por horas.</div>
+
+  <h2 class="section-head"><span class="block-title">2. Arquitectura objetivo</span></h2>
+  <p class="block-intro">El centro concentra toda la captura: un clúster de Kafka Connect con un
+  conector por sucursal, cada uno abriendo su propia conexión de replicación MySQL a través de la
+  VPN. Nada se instala en la sucursal más allá de la configuración del propio MySQL.</p>
+
+  <div class="diagram">┌─ Sucursal 1 ──────────────────┐
+│ MySQL POS                     │
+│  └─ binlog ROW + GTID         │◄──────────────┐
+│  └─ usuario dedicado          │               │
+└─────────────────────────────────┘               │
+┌─ Sucursal 2 ──────────────────┐               │  VPN / túnel site-to-site
+│ MySQL POS (binlog + usuario)  │◄──────────────┼──────────┐
+└─────────────────────────────────┘               │          │
+┌─ Sucursal N (50+) ─────────────┐               │          │
+│ MySQL POS (binlog + usuario)  │◄──────────────┘          │
+└─────────────────────────────────┘                          ▼
+                                             ┌───────────────────────────────┐
+                                             │  <span class="hl">Kafka Connect</span> (clúster de workers,│
+                                             │  1 conector por sucursal,       │
+                                             │  balanceados entre workers)     │
+                                             └───────────────┬───────────────┘
+                                                              │
+                                                              ▼
+                                             ┌───────────────────────────────┐
+                                             │  Kafka (clúster, 3+ brokers,     │
+                                             │  factor de replicación ≥3)       │
+                                             └───────────────┬───────────────┘
+                                        ┌────────────────────┼────────────────────┐
+                                        ▼                                          ▼
+                            ┌─────────────────────────┐          ┌─────────────────────────┐
+                            │  <span class="hl">Sink</span> (JDBC Sink o app     │          │  <span class="hl2">Monitoreo</span>              │
+                            │  propia tipo central-sync) │          │  métricas + alertas reales│
+                            └────────────┬────────────┘          └─────────────────────────┘
+                                        ▼
+                            ┌─────────────────────────┐
+                            │  Base Central              │
+                            │  (PostgreSQL / Azure SQL)  │
+                            └─────────────────────────┘</div>
+
+  <p>Esto <strong>no</strong> es una reinterpretación del laboratorio — es literalmente su misma
+  topología, escalada. Lo que cambia entre el laboratorio y esta propuesta es: la VPN reemplaza a
+  la red Docker compartida, el clúster de Kafka Connect pasa de un worker a varios (para repartir
+  50+ conectores), y el clúster de Kafka gana brokers y replicación.</p>
+
+  <h2 class="section-head"><span class="block-title">3. Instalación y configuración por sucursal</span></h2>
+  <p class="block-intro">A diferencia de Opción B, en cada sucursal nueva no se instala ningún
+  agente — el trabajo real ocurre del lado del centro (sección 3.2). Lo único que toca a la
+  sucursal es preparar su MySQL y habilitar la ruta de red.</p>
+
+  <h3>3.1 — Preparar el MySQL del POS</h3>
+  <ol>
+    <li>Confirmar versión: MySQL 5.7+ u 8.0 (Debezium soporta ambas; se recomienda 8.0 si hay
+    opción de elegir).</li>
+    <li>Habilitar el binlog en formato <code class="inline">ROW</code> con imagen completa, y GTID
+    — la misma receta validada en el laboratorio:
+      <pre>log_bin = ON
+binlog_format = ROW
+binlog_row_image = FULL
+gtid_mode = ON
+enforce_gtid_consistency = ON</pre>
+    </li>
+    <li>Ajustar la retención del binlog para dar margen de recuperación ante un conector que quede
+    <code class="inline">FAILED</code> varios días (por ejemplo, un corte largo de la VPN):
+      <pre>binlog_expire_logs_seconds = 604800  <span class="dim"># 7 días</span></pre>
+    </li>
+    <li>Crear el usuario dedicado con privilegios mínimos (idéntico al de
+    <code class="inline">mysql-init/pos/01-schema.sql</code> del laboratorio), permitiendo la
+    conexión solo desde el rango de IP del clúster de Kafka Connect (no <code class="inline">'%'</code>
+    como en el laboratorio):
+      <pre>CREATE USER 'debezium'@'10.x.x.x/mask-del-connect' IDENTIFIED BY '&lt;password fuerte, gestionada por el vault&gt;';
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT
+    ON *.* TO 'debezium'@'10.x.x.x/mask-del-connect';</pre>
+    </li>
+    <li>Habilitar, dentro de la VPN, la ruta entrante desde la subred del clúster de Kafka Connect
+    hacia el puerto de MySQL de esa sucursal (coordinado con el equipo de red).</li>
+    <li>Verificar espacio en disco disponible para el binlog con la retención elegida.</li>
+  </ol>
+
+  <h3>3.2 — Registrar el conector en el Kafka Connect central</h3>
+  <ol>
+    <li>Asignar <code class="inline">database.server.id</code> y <code class="inline">topic.prefix</code>
+    únicos para la sucursal (registro central — una colisión rompe la captura de ambas sucursales
+    en silencio, sin error explícito).</li>
+    <li>Registrar el conector vía la API REST de Kafka Connect, siguiendo el mismo formato que
+    <code class="inline">connector/register-sucursalNN-connector.json</code> del laboratorio, con
+    el <code class="inline">database.hostname</code> apuntando a la IP/hostname de la sucursal
+    dentro de la VPN:
+      <pre>{
+  "name": "pos-sucursalNN-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "database.hostname": "10.x.x.x",
+    "database.port": "3306",
+    "database.user": "debezium",
+    "database.password": "${vault:debezium/sucursalNN/db_password}",
+    "database.server.id": "&lt;único por sucursal&gt;",
+    "topic.prefix": "pos.sucursalNN",
+    "table.include.list": "pos_sucursalNN.medicamentos,pos_sucursalNN.ventas,...",
+    "snapshot.mode": "when_needed"
+  }
+}</pre>
+      <div class="meaning" style="font-size:13.3px;color:var(--ink-soft)">
+      Nota sobre <code class="inline">snapshot.mode</code>: igual que en la propuesta de Opción B,
+      el laboratorio usa <code class="inline">initial</code> porque las tablas son pequeñas; en
+      producción con historial grande conviene <code class="inline">when_needed</code> +
+      snapshots incrementales para no bloquear recursos horas.</div>
+    </li>
+    <li>Verificar el estado del conector (<code class="inline">RUNNING</code>, sin tareas
+    <code class="inline">FAILED</code>) y que el snapshot inicial llega al tópico correspondiente.
+    <code class="inline">connector-watchdog</code> (o su equivalente productizado) debe estar
+    vigilando este conector desde el momento en que se registra.</li>
+    <li>Confirmar que las métricas de Kafka Connect (JMX/Prometheus) reflejan la nueva sucursal en
+    el monitoreo central.</li>
+  </ol>
+
+  <h2 class="section-head"><span class="block-title">4. Requerimientos</span></h2>
+
+  <div class="req-group">
+    <h4>Infraestructura central</h4>
+    <ul class="req-list">
+      <li><span class="k">Kafka Connect</span><span class="v">Clúster de varios workers en modo distribuido (no uno solo como en el laboratorio) — con 50+ conectores hay que dimensionar cuántos conectores por worker tolera cada JVM antes de degradar el rebalanceo</span></li>
+      <li><span class="k">Kafka</span><span class="v">Clúster de mínimo 3 brokers, factor de replicación ≥3 (el laboratorio usa 1 solo broker — suficiente para demostrar, no para producción)</span></li>
+      <li><span class="k">VPN</span><span class="v">Concentrador/gateway VPN capaz de sostener 50+ túneles o rutas simultáneas, con el equipo de red como dueño de esa capa</span></li>
+      <li><span class="k">Sink</span><span class="v">Kafka Connect JDBC Sink, o una versión productizada del patrón de <code class="inline">central-sync</code> (contenedorizada, con las mismas garantías de commit manual + reintento ya validadas)</span></li>
+      <li><span class="k">Base Central</span><span class="v">PostgreSQL o Azure SQL (según lo definido originalmente) — el laboratorio usa MySQL solo por simplicidad de la demo</span></li>
+      <li><span class="k">Monitoreo</span><span class="v">Prometheus/Grafana u equivalente, con alertas reales (Slack, email, PagerDuty) conectadas a las señales que el laboratorio ya deja preparadas (ver sección 6)</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Por sucursal</h4>
+    <ul class="req-list">
+      <li><span class="k">Cómputo</span><span class="v">Ninguno adicional — a diferencia de Opción B, no hay agente que instalar ni mantener en la sucursal</span></li>
+      <li><span class="k">Red</span><span class="v">Ruta entrante habilitada dentro de la VPN, desde la subred del clúster de Kafka Connect hacia el puerto de MySQL — sin esto no hay Opción A posible</span></li>
+      <li><span class="k">MySQL</span><span class="v">Binlog habilitado, usuario dedicado restringido a la subred de Connect, espacio en disco para la retención elegida</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Seguridad</h4>
+    <ul class="req-list">
+      <li><span class="k">En tránsito</span><span class="v">La VPN cifra el enlace centro-sucursal, pero conviene TLS también dentro del túnel hacia MySQL (defensa en profundidad, no solo perímetro)</span></li>
+      <li><span class="k">Secretos de conectores</span><span class="v">Kafka Connect guarda la configuración de cada conector (incluida la contraseña) en un tópico interno en texto plano por defecto — requiere un <code class="inline">ConfigProvider</code> (Vault, AWS Secrets Manager, Azure Key Vault) para no exponer 50+ contraseñas en ese tópico</span></li>
+      <li><span class="k">Privilegios</span><span class="v">El usuario de replicación mantiene el mismo principio mínimo ya validado: solo lectura de binlog, cero acceso de escritura a datos de negocio, y restringido por host a la subred de Connect</span></li>
+      <li><span class="k">Rotación</span><span class="v">Proceso periódico de rotación de credenciales, coordinado entre el vault y el registro de conectores (rotar implica actualizar la config del conector vía REST, no solo la base)</span></li>
+      <li><span class="k">Blast radius</span><span class="v">Un clúster de Kafka Connect comprometido puede alcanzar las 50+ sucursales a la vez — a diferencia de Opción B, donde comprometer un agente solo expone una sucursal</span></li>
+    </ul>
+  </div>
+
+  <div class="req-group">
+    <h4>Equipo y gobierno</h4>
+    <ul class="req-list">
+      <li><span class="k">Central</span><span class="v">Un equipo de datos/plataforma responsable del clúster Kafka, el clúster de Kafka Connect (incluido su rebalanceo y escalado), el sink y el monitoreo</span></li>
+      <li><span class="k">Red</span><span class="v">Equipo de redes responsable de la VPN y de aprobar/abrir cada ruta entrante nueva — es una dependencia dura para dar de alta cada sucursal</span></li>
+      <li><span class="k">Sucursal</span><span class="v">Contacto de IT local solo para la preparación puntual del MySQL — sin responsabilidad operativa continua, a diferencia de Opción B</span></li>
+      <li><span class="k">Convención de IDs</span><span class="v">Registro central de <code class="inline">database.server.id</code> y <code class="inline">topic.prefix</code> asignados — una colisión entre sucursales rompe la captura silenciosamente</span></li>
+    </ul>
+  </div>
+
+  <h2 class="section-head"><span class="block-title">5. Checklist de alta de una sucursal nueva</span></h2>
+  <p class="block-intro">Pensado para repetirse 50+ veces sin sorpresas. A diferencia de Opción B, casi todo el trabajo recurrente cae del lado del centro, no de la sucursal.</p>
+  <ul class="checklist">
+    <li><span class="box"></span>Confirmar versión de MySQL y espacio en disco disponible en la sucursal</li>
+    <li><span class="box"></span>Habilitar binlog ROW + GTID, ajustar retención</li>
+    <li><span class="box"></span>Crear el usuario <code class="inline">debezium</code> dedicado, restringido a la subred de Connect, con password generada en el vault</li>
+    <li><span class="box"></span>Solicitar y validar la ruta VPN entrante desde el clúster de Kafka Connect hacia el MySQL de la sucursal</li>
+    <li><span class="box"></span>Asignar <code class="inline">server.id</code> y <code class="inline">topic.prefix</code> únicos (verificar contra el registro central)</li>
+    <li><span class="box"></span>Registrar el conector vía la API REST del Kafka Connect central</li>
+    <li><span class="box"></span>Confirmar estado <code class="inline">RUNNING</code> y snapshot inicial en el tópico correspondiente</li>
+    <li><span class="box"></span>Confirmar que <code class="inline">connector-watchdog</code> (o equivalente) está vigilando el conector nuevo</li>
+    <li><span class="box"></span>Confirmar que la sucursal aparece en el monitoreo y que las métricas fluyen</li>
+    <li><span class="box"></span>Hacer un cambio de prueba end-to-end y confirmar que llega a la Base Central</li>
+  </ul>
+
+  <h2 class="section-head"><span class="block-title">6. Del laboratorio a producción</span></h2>
+  <p class="block-intro">Con Opción A, el laboratorio no es una aproximación conceptual — es la misma arquitectura, sin cambiar de patrón. Lo que crece es la escala (workers, sucursales, brokers), no el diseño.</p>
+
+  <div class="bridge-grid">
+    <div class="bridge-col have">
+      <h4>Ya validado en el laboratorio</h4>
+      <ul>
+        <li>Registro de conectores por sucursal contra la API REST de Kafka Connect, exactamente como se haría en producción</li>
+        <li>Forma y contenido de los eventos CDC (before/after, tipos de dato, tombstones)</li>
+        <li>Consolidación de múltiples fuentes en una base central sin polling</li>
+        <li>Recuperación automática del sink ante una caída de la base destino (commit manual + reintento con backoff)</li>
+        <li><code class="inline">connector-watchdog</code>: recuperación automática de conectores <code class="inline">FAILED</code> y <code class="inline">UNASSIGNED</code> — el mecanismo que Opción A necesita en producción, ya probado en vivo</li>
+        <li>Heartbeat + healthcheck real del proceso de sincronización</li>
+        <li>Persistencia de los datos de Kafka ante un reinicio</li>
+      </ul>
+    </div>
+    <div class="bridge-col need">
+      <h4>Falta para producción real</h4>
+      <ul>
+        <li>VPN corporativa con 50+ rutas activas (el laboratorio usa una única red Docker compartida)</li>
+        <li>Clúster de Kafka Connect con varios workers y conectores distribuidos entre ellos (el laboratorio corre un worker con 3 conectores)</li>
+        <li>ConfigProvider para no exponer contraseñas de conectores en texto plano en el tópico interno de configuración</li>
+        <li>Clúster Kafka con replicación ≥3 (el laboratorio corre 1 solo broker)</li>
+        <li>Snapshot incremental en vez de <code class="inline">initial</code> para tablas grandes</li>
+        <li>Motor destino final (Postgres/Azure SQL en vez de MySQL)</li>
+        <li>Monitoreo con alertas reales conectadas a un canal (hoy es solo una línea en el log)</li>
+        <li>Automatización del alta de sucursales (playbook de registro de conector + ruta VPN, no pasos manuales)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section-head"><span class="block-title">7. Decisiones abiertas</span></h2>
+  <p class="block-intro">Estas definiciones son específicas de operar Opción A a esta escala — vale la pena resolverlas antes de automatizar el rollout.</p>
+
+  <div class="decision">
+    <div class="q">¿Kafka propio o administrado?</div>
+    <div class="opts">Self-hosted (más control, más operación propia) vs. un servicio administrado tipo Confluent Cloud / Amazon MSK / Aiven (menos operación, costo recurrente distinto). Con Opción A esto se extiende también a si Kafka Connect corre autoadministrado o como parte del mismo servicio administrado.</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Cómo se dimensiona el clúster de Kafka Connect?</div>
+    <div class="opts">Cuántos workers y cuántos conectores máximo por worker antes de que el rebalanceo se vuelva lento — a diferencia de Opción B, este es un límite compartido por todas las sucursales, no un costo por sucursal.</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Qué topología de VPN hacia las sucursales?</div>
+    <div class="opts">Hub-and-spoke clásico hacia el centro (más simple, todo pasa por el mismo concentrador) vs. una malla gestionada por el proveedor de red — condiciona qué tan rápido y con cuánta fricción se puede agregar una sucursal nueva.</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Motor de la Base Central?</div>
+    <div class="opts">PostgreSQL, Azure SQL, o mantener MySQL — afecta qué sink usar y qué equipo la administra.</div>
+  </div>
+  <div class="decision">
+    <div class="q">¿Cómo se gestionan los secretos de 50+ conectores?</div>
+    <div class="opts">Un <code class="inline">ConfigProvider</code> centralizado (Vault, AWS Secrets Manager, Azure Key Vault) integrado a Kafka Connect vs. inyección manual de credenciales al registrar cada conector — la primera opción es la única que escala sin exponer contraseñas en el tópico interno de configuración.</div>
+  </div>
+
+  <footer>
+    debezium-lab · arquitectura de producción (Opción A) · ver también: arquitectura de producción (Opción B) · runbook de demo · informe de resolución de fallas
+  </footer>
+
+</div>

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker exec *)",
+      "Bash(docker compose *)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s http://localhost:8083/connectors/pos-sucursal-02-connector/status)",
+      "Bash(python3 -m json.tool)",
+      "Bash(grep -B5 \"### DELETE FROM \\\\`pos_sucursal_02\\\\`.\\\\`detalle_venta\\\\`\")",
+      "Bash(rm -f /tmp/verif_s2.txt)",
+      "Bash(./scripts/1-registrar-conector.sh)",
+      "Bash(docker exec -i dbz-lab-mysql-central mysql -uroot -prootpassword central_farmacias -e ' *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8090/)",
+      "Bash(curl -s -o /dev/null -w \"static JS %{http_code}\\\\n\" http://localhost:8090/static/app.js)",
+      "Bash(./scripts/3-simular-cambios.sh sucursal02 *)",
+      "Bash(yes \"\")",
+      "Bash(./scripts/3-simular-cambios.sh sucursal01 *)",
+      "Bash(python3 -c \"import websockets\")",
+      "Bash(python3 /private/tmp/claude-501/-Users-alopez-Documents-Interware-debezium-lab/b675cfb7-9018-4ad2-a82d-5ce76b074953/scratchpad/ws_check.py)",
+      "Bash(python3 -c \"import confluent_kafka; print\\(confluent_kafka.__version__\\)\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP index: %{http_code}\\\\n\" http://localhost:8090/)"
+    ]
+  }
+}

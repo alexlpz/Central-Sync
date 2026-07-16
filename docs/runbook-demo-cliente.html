@@ -1,0 +1,545 @@
+<title>Runbook — Demo debezium-lab</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --paper: #ffffff;
+    --ink: #171b26;
+    --ink-soft: #4b5568;
+    --ink-faint: #7c8798;
+    --accent: #0e7a72;
+    --accent-ink: #075a54;
+    --accent-soft: #e4f1ef;
+    --line: #dbdfe6;
+    --line-soft: #eaecf0;
+    --ok: #2f8f4e;
+    --ok-soft: #e6f4ea;
+    --warn: #b8790c;
+    --warn-soft: #fbf0dd;
+    --bad: #c4432b;
+    --bad-soft: #fbeae6;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  header.doc-head {
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 22px;
+    margin-bottom: 40px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 10px 0 8px;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .doc-sub {
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    max-width: 62ch;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 22px;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    flex-wrap: wrap;
+  }
+
+  .meta-row strong { color: var(--ink-soft); font-weight: 600; }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 52px 0 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h2 .block-title {
+    display: block;
+    font-family: var(--sans);
+    font-size: 21px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .block-intro {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    margin: 14px 0 22px;
+    max-width: 64ch;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 4px 16px;
+    margin-bottom: 26px;
+  }
+
+  .step-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--paper);
+    background: var(--ink);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-title {
+    font-weight: 600;
+    font-size: 15.5px;
+    padding-top: 2px;
+  }
+
+  .step-body {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .who {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 3px;
+    width: fit-content;
+  }
+
+  .who.term { background: var(--accent-soft); color: var(--accent-ink); }
+  .who.dbeaver { background: var(--warn-soft); color: var(--warn); }
+  .who.watch { background: var(--line-soft); color: var(--ink-soft); }
+
+  pre {
+    background: var(--ink);
+    color: #eef2f0;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 12px 14px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 0;
+    line-height: 1.5;
+  }
+  pre .comment { color: #8fa39c; }
+
+  code.inline {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: var(--line-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent-ink);
+  }
+
+  .expect {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--ink);
+    border-radius: 0 4px 4px 0;
+  }
+  .expect .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .meaning {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    padding-left: 2px;
+  }
+  .meaning .label {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    margin: 4px 0 8px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  td.mono, th.mono { font-family: var(--mono); }
+  .table-wrap { overflow-x: auto; }
+
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    background: var(--paper);
+    padding: 14px 16px;
+    border-radius: 0 4px 4px 0;
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin: 18px 0;
+  }
+  .callout strong { color: var(--ink); }
+
+  .script-tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 32px 16px 64px; }
+    h1 { font-size: 24px; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <span class="eyebrow">debezium-lab · runbook</span>
+    <h1>Guion de demo para el cliente</h1>
+    <p class="doc-sub">Paso a paso de qué correr en terminal, qué hacer en DBeaver, y qué debería
+    aparecer en cada momento — para presentar el laboratorio de CDC (3 sucursales →
+    Kafka → Base Central) sin improvisar comandos en vivo.</p>
+    <div class="meta-row">
+      <span><strong>Duración estimada:</strong> 25–35 min</span>
+      <span><strong>Terminales:</strong> 2</span>
+      <span><strong>Requiere:</strong> DBeaver + Docker corriendo</span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="block-title">0. Antes de que llegue el cliente</span></h2>
+    <p class="block-intro">Todo esto se hace en privado, 10–15 minutos antes. No es parte de lo que ve el cliente.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Confirmar que el ambiente está sano</div>
+      <div class="step-body">
+        <span class="who term">Terminal</span>
+        <pre>docker compose ps</pre>
+        <div class="expect">
+          <span class="label">Deberías ver</span>
+          Los 8 contenedores <code class="inline">Up</code>, y <code class="inline">mysql-sucursal-01/02/03</code>,
+          <code class="inline">mysql-central</code> y <code class="inline">central-sync</code> marcados <code class="inline">(healthy)</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">Confirmar que los 3 conectores están activos</div>
+      <div class="step-body">
+        <span class="who term">Terminal</span>
+        <pre>for n in pos-sucursal-01-connector pos-sucursal-02-connector pos-sucursal-03-connector; do
+  curl -s "http://localhost:8083/connectors/${n}/status" \
+    | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['name'],'->',d['connector']['state'])"
+done</pre>
+        <div class="expect"><span class="label">Deberías ver</span>Los 3 en <code class="inline">RUNNING</code>. Si alguno no lo está, corre <span class="script-tag">./scripts/1-registrar-conector.sh</span> antes de seguir.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">Abrir las 4 conexiones en DBeaver</div>
+      <div class="step-body">
+        <span class="who dbeaver">DBeaver</span>
+        <div class="table-wrap">
+        <table>
+          <tr><th>Conexión</th><th class="mono">Host</th><th class="mono">Puerto</th><th class="mono">Base</th><th class="mono">Usuario / pass</th></tr>
+          <tr><td>Sucursal 01</td><td class="mono">localhost</td><td class="mono">3306</td><td class="mono">pos_sucursal_01</td><td class="mono">root / rootpassword</td></tr>
+          <tr><td>Sucursal 02</td><td class="mono">localhost</td><td class="mono">3307</td><td class="mono">pos_sucursal_02</td><td class="mono">root / rootpassword</td></tr>
+          <tr><td>Sucursal 03</td><td class="mono">localhost</td><td class="mono">3308</td><td class="mono">pos_sucursal_03</td><td class="mono">root / rootpassword</td></tr>
+          <tr><td>Base Central</td><td class="mono">localhost</td><td class="mono">3309</td><td class="mono">central_farmacias</td><td class="mono">root / rootpassword</td></tr>
+        </table>
+        </div>
+        <div class="meaning"><span class="label">Deja abiertas</span> las 4 pestañas de SQL editor, una por conexión, listas para escribir — no las abras en vivo frente al cliente.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-title">Acomodar la pantalla</div>
+      <div class="step-body">
+        <div class="meaning">Terminal A a la izquierda (para dejar corriendo <span class="script-tag">4-verificar-cambio.sh</span> en vivo), DBeaver a la derecha. Terminal B la usas para lanzar los scripts sin tapar la vista de A.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Bloque A — Captura de cambios en tiempo real</span></h2>
+    <p class="block-intro">El punto central del laboratorio: un cambio hecho directamente en el MySQL de una sucursal aparece en Kafka al instante, sin que nadie haya consultado esa base.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Dejar la terminal A viendo eventos en vivo</div>
+      <div class="step-body">
+        <span class="who term">Terminal A</span>
+        <pre>./scripts/4-verificar-cambio.sh sucursal01 medicamentos</pre>
+        <div class="expect"><span class="label">Deberías ver</span>Un mensaje "Viendo solo eventos NUEVOS..." y la terminal quieta, esperando.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">Editar un producto en DBeaver</div>
+      <div class="step-body">
+        <span class="who dbeaver">DBeaver — conexión Sucursal 01</span>
+        <pre>UPDATE medicamentos
+SET precio_venta = 27.99, inventario = inventario - 10
+WHERE sku = 'MED-003';</pre>
+        <div class="meaning"><span class="label">Di en voz alta</span> "esto es exactamente lo que haría el sistema de punto de venta al hacer un ajuste de precio o una venta — un UPDATE normal, nada especial."</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">Señalar la Terminal A</div>
+      <div class="step-body">
+        <span class="who watch">Observar Terminal A</span>
+        <div class="expect">
+          <span class="label">Deberías ver, en 1–2 segundos</span>
+          <pre style="margin-top:6px">[UPDATE] id=3
+  antes:   ... precio_venta=35.00 inventario=70
+  despues: ... precio_venta=27.99 inventario=60</pre>
+        </div>
+        <div class="meaning"><span class="label">Qué significa</span> Debezium leyó el binlog de MySQL (el registro interno de cambios que ya trae el motor), lo tradujo a un evento con el estado <em>antes</em> y <em>después</em>, y lo publicó en Kafka — nadie hizo polling a la base.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Bloque B — Ciclo de vida completo de un producto</span></h2>
+    <p class="block-intro">Un caso más rico que un solo UPDATE: un producto que llega, se vende, cambia de precio y se da de baja — 5 eventos encadenados.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Lanzar la simulación en sucursal02</div>
+      <div class="step-body">
+        <span class="who term">Terminal B</span>
+        <pre>./scripts/3-simular-cambios.sh sucursal02</pre>
+        <div class="meaning">El script pausa en cada paso ("Enter para continuar") — así puedes narrar cada uno antes de avanzar: alta de inventario, dos ventas (cada una con su fila en <code class="inline">ventas</code>/<code class="inline">detalle_venta</code>), una promoción, y finalmente la baja del producto.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">(Opcional) Verlo reflejado en Terminal A</div>
+      <div class="step-body">
+        <span class="who term">Terminal A</span>
+        <pre>./scripts/4-verificar-cambio.sh sucursal02 medicamentos</pre>
+        <div class="expect"><span class="label">Deberías ver</span>Un <code class="inline">[INSERT]</code>, varios <code class="inline">[UPDATE]</code> y un <code class="inline">[DELETE]</code> con SKU único (con timestamp) a medida que avanzas el script B.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Bloque C — Tres sucursales, una sola vista consolidada</span></h2>
+    <p class="block-intro">Aquí se cierra la historia de negocio: 3 bases físicamente independientes, una Base Central que las refleja a todas sin que el portal central le pregunte nada a ninguna sucursal.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Hacer un cambio distinto en cada sucursal</div>
+      <div class="step-body">
+        <span class="who dbeaver">DBeaver — sucursal01, sucursal02, sucursal03</span>
+        <div class="meaning">Un <code class="inline">UPDATE</code> de precio en cada una (usa productos distintos por sucursal — revisa el catálogo de cada una si no te sabes los SKUs de memoria).</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">Abrir la conexión "Base Central" en DBeaver y refrescar (F5)</div>
+      <div class="step-body">
+        <span class="who dbeaver">DBeaver — Base Central</span>
+        <pre>SELECT sucursal, sku, nombre, precio_venta, inventario, actualizado_en
+FROM medicamentos
+ORDER BY sucursal, sku;</pre>
+        <div class="expect"><span class="label">Deberías ver</span>Los 3 cambios ya reflejados, cada fila con su columna <code class="inline">sucursal</code> — la vista consolidada de las 3 farmacias en una sola tabla.</div>
+        <div class="meaning"><span class="label">Alternativa por terminal</span> <span class="script-tag">./scripts/5-ver-central.sh</span> hace la misma consulta sin salir de la terminal.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Bloque D — Resiliencia: se cae la Base Central</span></h2>
+    <p class="block-intro">La pregunta que todo cliente hace tarde o temprano: "¿y si el servidor central se cae mientras las farmacias siguen vendiendo?" Este bloque lo responde en vivo.</p>
+
+    <div class="callout"><strong>Guion sugerido antes de empezar:</strong> "vamos a simular una caída real del servidor central — apagándolo de verdad, no con un truco. Van a ver que las sucursales ni se enteran, y que al recuperarlo todo se pone al día solo."</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Correr el script de demo</div>
+      <div class="step-body">
+        <span class="who term">Terminal B</span>
+        <pre>./scripts/6-demo-resiliencia.sh</pre>
+        <div class="meaning">Tiene 6 pausas narradas. En el paso 3 te va a pedir que hagas un cambio real en DBeaver (cualquier sucursal) — hazlo ahí mismo frente al cliente.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">Señalar el healthcheck en el paso 4</div>
+      <div class="step-body">
+        <div class="expect"><span class="label">Deberías ver</span>
+          <pre style="margin-top:6px">Estado de salud de central-sync (Docker healthcheck): healthy</pre>
+        </div>
+        <div class="meaning"><span class="label">Qué significa</span> El proceso sigue reintentando activamente contra la Base Central caída, y Docker mismo confirma que sigue vivo — no es solo "no se cayó", está funcionando de verdad.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">Cerrar con la verificación en DBeaver</div>
+      <div class="step-body">
+        <span class="who dbeaver">DBeaver — Base Central</span>
+        <div class="meaning">El script termina pidiéndote refrescar (F5) la conexión a la Base Central — el cambio del paso 3 ya debe estar ahí, sin que nadie haya "reparado" nada a mano.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Bloque E — Resiliencia: se cae el conector de una sucursal</span></h2>
+    <p class="block-intro">El segundo escenario de falla: no la Base Central, sino la pieza que lee los cambios de una sucursal específica.</p>
+
+    <div class="callout"><strong>Guion sugerido:</strong> "ahora el que se cae es el servidor de una sucursal puntual. Van a ver que el sistema lo detecta y lo reinicia solo, sin que nadie tenga que llamar a soporte a las 3am."</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Correr el script de demo</div>
+      <div class="step-body">
+        <span class="who term">Terminal B</span>
+        <pre>./scripts/7-demo-watchdog.sh sucursal02</pre>
+        <div class="meaning">6 pausas narradas: apaga el MySQL de esa sucursal, fuerza el fallo del conector, te muestra la causa exacta del error, y luego el reintento automático con backoff (30s, 60s, 120s…).</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">Levantar la sucursal cuando el script lo pida (paso 5)</div>
+      <div class="step-body">
+        <div class="meaning">El propio script hace el <code class="inline">docker compose start</code> — solo tienes que confirmar el Enter.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">Cronómetro de recuperación (paso 6)</div>
+      <div class="step-body">
+        <div class="expect"><span class="label">Deberías ver</span>
+          <pre style="margin-top:6px">t+25s: RUNNING:RUNNING
+&gt;&gt;&gt; Recuperado en 25s, sin intervención manual &lt;&lt;&lt;</pre>
+        </div>
+        <div class="meaning">Recuperación en 30–60 segundos típicamente, sin que nadie haya tocado la API de Kafka Connect a mano.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Bloque F — Cierre visual (opcional)</span></h2>
+    <p class="block-intro">Si sobra tiempo, o si el cliente pide "ver Kafka por dentro" sin tecnicismos.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Abrir Kafdrop en el navegador</div>
+      <div class="step-body">
+        <span class="who watch">Navegador</span>
+        <pre>http://localhost:9000</pre>
+        <div class="meaning">Entra a cualquier tópico (ej. <code class="inline">pos.sucursal01.pos_sucursal_01.medicamentos</code>) → "View Messages" — útil para mostrar visualmente que cada cambio quedó como un mensaje individual, sin abrir terminal.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="block-title">Al terminar</span></h2>
+    <div class="callout">
+      No hace falta apagar nada — el ambiente puede quedarse corriendo para la siguiente demo.
+      Si necesitas dejarlo completamente limpio (catálogo original, sin los productos de prueba
+      de <span class="script-tag">3-simular-cambios.sh</span>):
+      <pre style="margin-top:10px">docker compose down -v
+docker compose up -d --build
+./scripts/1-registrar-conector.sh</pre>
+    </div>
+  </section>
+
+  <footer>
+    debezium-lab · runbook de demo · ver también: informe de resolución de fallas
+  </footer>
+
+</div>

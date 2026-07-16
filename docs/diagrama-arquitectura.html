@@ -1,0 +1,334 @@
+<title>Arquitectura técnica — debezium-lab</title>
+<style>
+  :root {
+    --paper: #F4F6F8;
+    --surface: #FFFFFF;
+    --surface-sunken: #EEF1F4;
+    --ink: #16212B;
+    --ink-soft: #55636F;
+    --ink-faint: #8895A1;
+    --line: #E1E7EC;
+    --line-strong: #C7D0D8;
+    --accent: #2C5EA8;
+    --accent-soft: #E8EFF8;
+    --good: #2E9C63;
+    --db-tint: #E9EEFB; --db-ink: #3C5FB0;
+    --stream-tint: #EAF6F2; --stream-ink: #1F8C6E;
+    --app-tint: #F2EEFB; --app-ink: #6B4FB5;
+    --obs-tint: #FBF1E4; --obs-ink: #B4780F;
+    --shadow: 0 1px 2px rgba(20, 30, 40, .07), 0 6px 16px rgba(20, 30, 40, .06);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #10151A; --surface: #171E25; --surface-sunken: #12171C;
+      --ink: #EBF0F4; --ink-soft: #94A3B0; --ink-faint: #5E6C78; --line: #263039; --line-strong: #34404B;
+      --accent: #6FA0E6; --accent-soft: rgba(111,160,230,.14); --good: #49BC80;
+      --db-tint: rgba(111,160,230,.14); --db-ink: #9DB9EE;
+      --stream-tint: rgba(73,188,128,.13); --stream-ink: #7FD6B0;
+      --app-tint: rgba(180,140,230,.15); --app-ink: #C9A9EE;
+      --obs-tint: rgba(221,172,73,.14); --obs-ink: #E8C079;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #10151A; --surface: #171E25; --surface-sunken: #12171C;
+    --ink: #EBF0F4; --ink-soft: #94A3B0; --ink-faint: #5E6C78; --line: #263039; --line-strong: #34404B;
+    --accent: #6FA0E6; --accent-soft: rgba(111,160,230,.14); --good: #49BC80;
+    --db-tint: rgba(111,160,230,.14); --db-ink: #9DB9EE;
+    --stream-tint: rgba(73,188,128,.13); --stream-ink: #7FD6B0;
+    --app-tint: rgba(180,140,230,.15); --app-ink: #C9A9EE;
+    --obs-tint: rgba(221,172,73,.14); --obs-ink: #E8C079;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --paper: #F4F6F8; --surface: #FFFFFF; --surface-sunken: #EEF1F4;
+    --ink: #16212B; --ink-soft: #55636F; --ink-faint: #8895A1; --line: #E1E7EC; --line-strong: #C7D0D8;
+    --accent: #2C5EA8; --accent-soft: #E8EFF8; --good: #2E9C63;
+    --db-tint: #E9EEFB; --db-ink: #3C5FB0;
+    --stream-tint: #EAF6F2; --stream-ink: #1F8C6E;
+    --app-tint: #F2EEFB; --app-ink: #6B4FB5;
+    --obs-tint: #FBF1E4; --obs-ink: #B4780F;
+    --shadow: 0 1px 2px rgba(20,30,40,.07), 0 6px 16px rgba(20,30,40,.06);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1300px; margin: 0 auto; padding: 40px 32px 56px; }
+
+  header { margin-bottom: 24px; }
+  .eyebrow { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  h1 { font-family: var(--serif); font-size: 27px; font-weight: 600; margin: 0 0 10px; letter-spacing: -.01em; text-wrap: balance; }
+  .lede { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 78ch; line-height: 1.55; }
+
+  .diagram-wrap { overflow-x: auto; }
+  svg.diagram { width: 100%; min-width: 1150px; height: auto; display: block; }
+
+  /* node card content (rendered inside foreignObject) */
+  .node {
+    width: 100%; height: 100%; box-sizing: border-box;
+    background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 10px 13px; position: relative; font-family: var(--sans);
+  }
+  .node.accent-node { border-color: var(--accent); background: var(--accent-soft); }
+  .node-head { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+  .icon-tile { width: 27px; height: 27px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .icon-tile svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-tile.db { background: var(--db-tint); color: var(--db-ink); }
+  .icon-tile.stream { background: var(--stream-tint); color: var(--stream-ink); }
+  .icon-tile.app { background: var(--app-tint); color: var(--app-ink); }
+  .icon-tile.obs { background: var(--obs-tint); color: var(--obs-ink); }
+  .node-name { font-size: 12.5px; font-weight: 700; line-height: 1.2; color: var(--ink); }
+  .node-image { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); margin-top: 1px; }
+  .port-badge {
+    position: absolute; top: 8px; right: 9px;
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    background: var(--surface-sunken); border: 1px solid var(--line); color: var(--ink-soft);
+    padding: 1px 7px; border-radius: 999px;
+  }
+  .port-badge.exposed { color: var(--accent); border-color: var(--accent); }
+  .node-detail { font-size: 9.7px; color: var(--ink-soft); line-height: 1.4; margin-top: 5px; }
+  .node-detail code { font-family: var(--mono); font-size: 9.3px; background: var(--surface-sunken); padding: 0 4px; border-radius: 3px; color: var(--ink); }
+  .connector-chips { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+  .chip { font-family: var(--mono); font-size: 8.3px; font-weight: 600; background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--ink-soft); }
+
+  .edge-line { fill: none; stroke: var(--ink-faint); stroke-width: 1.8; }
+  .edge-line.main { stroke: var(--accent); stroke-width: 2.2; }
+  .edge-line.dashed { stroke-dasharray: 5 4; stroke: var(--ink-faint); }
+  .edge-label-bg { fill: var(--paper); }
+  .edge-label { fill: var(--ink-soft); font-family: var(--sans); font-size: 11.5px; font-weight: 600; }
+  .edge-label.main { fill: var(--accent); }
+  .zone-tag { fill: var(--ink-faint); font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 20px; margin-top: 18px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 20px; box-shadow: var(--shadow); font-size: 12px; color: var(--ink-soft);
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-line { width: 26px; height: 0; border-top: 2.5px solid var(--accent); }
+  .legend-line.dashed { border-top: 2px dashed var(--ink-faint); }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 4px; }
+  .legend .badge-sample { font-family: var(--mono); font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-sunken); color: var(--ink-soft); }
+  .legend .badge-sample.exposed { color: var(--accent); border-color: var(--accent); }
+</style>
+
+<div class="page">
+  <header>
+    <span class="eyebrow">Arquitectura técnica · Laboratorio CDC</span>
+    <h1>Cómo está construida la demo, servicio por servicio</h1>
+    <p class="lede">9 contenedores Docker sobre una red interna (docker-compose). Línea azul sólida = flujo principal de captura de cambios; línea punteada = monitoreo, inspección u operación de soporte.</p>
+  </header>
+
+  <div class="diagram-wrap">
+    <svg class="diagram" viewBox="0 0 1300 800" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow-main" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" style="fill:var(--accent)"/>
+        </marker>
+        <marker id="arrow-dashed" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 Z" style="fill:var(--ink-faint)"/>
+        </marker>
+      </defs>
+
+      <!-- zone labels -->
+      <text x="60" y="30" class="zone-tag">Sucursales (POS)</text>
+      <text x="900" y="235" class="zone-tag">Operación y visibilidad</text>
+
+      <!-- === EDGES (drawn first, under the nodes) === -->
+
+      <!-- sucursales -> kafka connect -->
+      <path class="edge-line main" d="M160,170 L160,250" marker-end="url(#arrow-main)"/>
+      <path class="edge-line main" d="M400,170 L400,250" marker-end="url(#arrow-main)"/>
+      <path class="edge-line main" d="M640,170 L640,250" marker-end="url(#arrow-main)"/>
+      <rect x="330" y="200" width="140" height="18" class="edge-label-bg"/>
+      <text x="400" y="213" text-anchor="middle" class="edge-label main">CDC: lee el binlog</text>
+
+      <!-- kafka connect -> kafka -->
+      <path class="edge-line main" d="M420,390 L420,450" marker-end="url(#arrow-main)"/>
+      <rect x="430" y="410" width="70" height="18" class="edge-label-bg"/>
+      <text x="465" y="423" text-anchor="middle" class="edge-label main">eventos</text>
+
+      <!-- kafka -> central-sync -->
+      <path class="edge-line main" d="M420,570 L420,610 L250,610 L250,650" marker-end="url(#arrow-main)"/>
+      <rect x="255" y="595" width="130" height="18" class="edge-label-bg"/>
+      <text x="320" y="608" text-anchor="middle" class="edge-label main">consume, aplica</text>
+
+      <!-- central-sync -> mysql central -->
+      <path class="edge-line main" d="M360,705 L420,705" marker-end="url(#arrow-main)"/>
+
+      <!-- watchdog -> kafka connect (dashed) -->
+      <path class="edge-line dashed" d="M900,320 L700,320" marker-end="url(#arrow-dashed)"/>
+      <rect x="745" y="309" width="65" height="16" class="edge-label-bg"/>
+      <text x="778" y="321" text-anchor="middle" class="edge-label">vigila</text>
+
+      <!-- kafdrop -> kafka (dashed) -->
+      <path class="edge-line dashed" d="M900,510 L590,510" marker-end="url(#arrow-dashed)"/>
+      <rect x="695" y="499" width="95" height="16" class="edge-label-bg"/>
+      <text x="742" y="511" text-anchor="middle" class="edge-label">inspecciona</text>
+
+      <!-- live-dashboard -> kafka (dashed) -->
+      <path class="edge-line dashed" d="M1060,650 L1060,560 L590,560" marker-end="url(#arrow-dashed)"/>
+      <rect x="775" y="549" width="80" height="16" class="edge-label-bg"/>
+      <text x="815" y="561" text-anchor="middle" class="edge-label">consume</text>
+
+      <!-- live-dashboard -> mysql central (dashed) -->
+      <path class="edge-line dashed" d="M900,705 L660,705" marker-end="url(#arrow-dashed)"/>
+      <rect x="700" y="694" width="115" height="16" class="edge-label-bg"/>
+      <text x="757" y="706" text-anchor="middle" class="edge-label">lee 1 vez al iniciar</text>
+
+      <!-- live-dashboard -> sucursal (write path), routed around the perimeter (dashed) -->
+      <path class="edge-line dashed" d="M1220,705 L1260,705 L1260,20 L620,20 L620,60" marker-end="url(#arrow-dashed)"/>
+      <rect x="860" y="11" width="220" height="16" class="edge-label-bg"/>
+      <text x="970" y="23" text-anchor="middle" class="edge-label">escribe: alta / edición / baja</text>
+
+      <!-- === NODES === -->
+
+      <!-- Sucursal 01 -->
+      <foreignObject x="60" y="60" width="200" height="110">
+        <div class="node">
+          <div class="port-badge exposed">:3306</div>
+          <div class="node-head">
+            <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+            <div><div class="node-name">MySQL Sucursal 01</div><div class="node-image">mysql:8.0</div></div>
+          </div>
+          <div class="node-detail">binlog <code>ROW</code>+<code>GTID</code></div>
+        </div>
+      </foreignObject>
+
+      <!-- Sucursal 02 -->
+      <foreignObject x="300" y="60" width="200" height="110">
+        <div class="node">
+          <div class="port-badge exposed">:3307</div>
+          <div class="node-head">
+            <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+            <div><div class="node-name">MySQL Sucursal 02</div><div class="node-image">mysql:8.0</div></div>
+          </div>
+          <div class="node-detail">binlog <code>ROW</code>+<code>GTID</code></div>
+        </div>
+      </foreignObject>
+
+      <!-- Sucursal 03 -->
+      <foreignObject x="540" y="60" width="200" height="110">
+        <div class="node">
+          <div class="port-badge exposed">:3308</div>
+          <div class="node-head">
+            <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+            <div><div class="node-name">MySQL Sucursal 03</div><div class="node-image">mysql:8.0</div></div>
+          </div>
+          <div class="node-detail">binlog <code>ROW</code>+<code>GTID</code></div>
+        </div>
+      </foreignObject>
+
+      <!-- Kafka Connect -->
+      <foreignObject x="140" y="250" width="560" height="140">
+        <div class="node">
+          <div class="port-badge exposed">:8083</div>
+          <div class="node-head">
+            <div class="icon-tile app"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3.5V8h-4.5"/><path d="M6 20.5V16h4.5"/></svg></div>
+            <div><div class="node-name">Kafka Connect</div><div class="node-image">quay.io/debezium/connect:3.5</div></div>
+          </div>
+          <div class="connector-chips">
+            <span class="chip">Debezium · suc01</span>
+            <span class="chip">Debezium · suc02</span>
+            <span class="chip">Debezium · suc03</span>
+          </div>
+          <div class="node-detail">1 conector MySQL por sucursal · <code>snapshot.mode: initial</code></div>
+        </div>
+      </foreignObject>
+
+      <!-- Kafka -->
+      <foreignObject x="250" y="450" width="340" height="120">
+        <div class="node">
+          <div class="port-badge exposed">:9092</div>
+          <div class="node-head">
+            <div class="icon-tile stream"><svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="1.8"/><line x1="9" y1="6" x2="19" y2="6"/><circle cx="5" cy="12" r="1.8"/><line x1="9" y1="12" x2="19" y2="12"/><circle cx="5" cy="18" r="1.8"/><line x1="9" y1="18" x2="19" y2="18"/></svg></div>
+            <div><div class="node-name">Kafka</div><div class="node-image">quay.io/debezium/kafka:3.5</div></div>
+          </div>
+          <div class="node-detail">Modo <code>KRaft</code>, 1 broker (demo) · 1 tópico por tabla/sucursal</div>
+        </div>
+      </foreignObject>
+
+      <!-- central-sync -->
+      <foreignObject x="140" y="650" width="220" height="110">
+        <div class="node">
+          <div class="port-badge">interno</div>
+          <div class="node-head">
+            <div class="icon-tile app"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3.5V8h-4.5"/><path d="M6 20.5V16h4.5"/></svg></div>
+            <div><div class="node-name">central-sync</div><div class="node-image">python:3.12-slim</div></div>
+          </div>
+          <div class="node-detail">commit manual · reintento con backoff</div>
+        </div>
+      </foreignObject>
+
+      <!-- MySQL Central -->
+      <foreignObject x="420" y="650" width="240" height="110">
+        <div class="node accent-node">
+          <div class="port-badge exposed">:3309</div>
+          <div class="node-head">
+            <div class="icon-tile db"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+            <div><div class="node-name">MySQL Base Central</div><div class="node-image">mysql:8.0</div></div>
+          </div>
+          <div class="node-detail">PK <code>(sucursal, id)</code></div>
+        </div>
+      </foreignObject>
+
+      <!-- connector-watchdog -->
+      <foreignObject x="900" y="250" width="320" height="140">
+        <div class="node">
+          <div class="port-badge">interno</div>
+          <div class="node-head">
+            <div class="icon-tile obs"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div><div class="node-name">connector-watchdog</div><div class="node-image">python:3.12-slim</div></div>
+          </div>
+          <div class="node-detail">recupera conectores <code>FAILED</code> / <code>UNASSIGNED</code></div>
+        </div>
+      </foreignObject>
+
+      <!-- Kafdrop -->
+      <foreignObject x="900" y="450" width="320" height="120">
+        <div class="node">
+          <div class="port-badge exposed">:9000</div>
+          <div class="node-head">
+            <div class="icon-tile obs"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6.5"/><line x1="20.5" y1="20.5" x2="14.8" y2="14.8"/></svg></div>
+            <div><div class="node-name">Kafdrop</div><div class="node-image">obsidiandynamics/kafdrop</div></div>
+          </div>
+          <div class="node-detail">UI web para ver tópicos y mensajes</div>
+        </div>
+      </foreignObject>
+
+      <!-- live-dashboard -->
+      <foreignObject x="900" y="650" width="320" height="110">
+        <div class="node">
+          <div class="port-badge exposed">:8090</div>
+          <div class="node-head">
+            <div class="icon-tile obs"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="6.3" cy="6.7" r=".9" fill="currentColor" stroke="none"/><circle cx="9" cy="6.7" r=".9" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="node-name">live-dashboard</div><div class="node-image">FastAPI + WebSocket</div></div>
+          </div>
+          <div class="node-detail">portal en vivo para el cliente</div>
+        </div>
+      </foreignObject>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-line"></span> Flujo principal (CDC)</div>
+    <div class="legend-item"><span class="legend-line dashed"></span> Monitoreo / soporte</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--db-tint)"></span> Base de datos</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--stream-tint)"></span> Transporte de eventos</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--app-tint)"></span> Aplicación / conector</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--obs-tint)"></span> Operación y visibilidad</div>
+    <div class="legend-item"><span class="badge-sample exposed">:puerto</span> expuesto al host</div>
+    <div class="legend-item"><span class="badge-sample">interno</span> solo red docker-compose</div>
+  </div>
+</div>

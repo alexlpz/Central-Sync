@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Central de Inventario — debezium-lab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%2316212B'/%3E%3Ccircle cx='8' cy='8' r='4.5' fill='%232C5EA8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+  <div class="page">
+
+    <header class="masthead">
+      <div>
+        <span class="eyebrow">Red de farmacias · sincronización en vivo</span>
+        <h1>Central de Inventario</h1>
+        <p class="lede">Cambios reales en las sucursales, reflejados en la Base Central sin polling — Debezium + Kafka de punta a punta.</p>
+      </div>
+      <div class="masthead-actions">
+        <div class="status-pill">
+          <span class="status-dot" id="conn-dot"></span>
+          <span id="conn-label">Conectando…</span>
+        </div>
+        <div class="chaos-controls">
+          <span class="chaos-label">Simular caída</span>
+          <button class="chaos-btn" type="button" data-target="mysql-central" title="Recuperación esperada: ~30–60s">
+            <span class="chaos-dot" id="chaos-dot-mysql-central"></span>
+            <span class="chaos-name">Base Central</span>
+            <span class="chaos-action" id="chaos-action-mysql-central">Detener</span>
+          </button>
+          <button class="chaos-btn" type="button" data-target="kafka" title="Recuperación esperada: ~4–5 min (los conectores se reinician solos)">
+            <span class="chaos-dot" id="chaos-dot-kafka"></span>
+            <span class="chaos-name">Kafka</span>
+            <span class="chaos-action" id="chaos-action-kafka">Detener</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <section class="summary">
+      <div class="stat">
+        <span class="stat-label">Sucursales conectadas</span>
+        <span class="stat-value" id="stat-sucursales">0 <span class="stat-unit">/ 3</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Productos en Central</span>
+        <span class="stat-value" id="stat-central">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Latencia de propagación</span>
+        <span class="stat-value" id="stat-latencia">— <span class="stat-unit">ms</span></span>
+      </div>
+    </section>
+
+    <main class="board">
+      <div class="sources">
+        <section class="panel" data-panel="sucursal01">
+          <div class="panel-head">
+            <span class="branch-dot dot-1"></span>
+            <h2>Sucursal 01</h2>
+            <span class="panel-count" id="count-sucursal01">0</span>
+            <button class="btn-new" type="button" data-branch="sucursal01">+ Nuevo</button>
+          </div>
+          <ul class="list" id="rows-sucursal01"></ul>
+        </section>
+
+        <section class="panel" data-panel="sucursal02">
+          <div class="panel-head">
+            <span class="branch-dot dot-2"></span>
+            <h2>Sucursal 02</h2>
+            <span class="panel-count" id="count-sucursal02">0</span>
+            <button class="btn-new" type="button" data-branch="sucursal02">+ Nuevo</button>
+          </div>
+          <ul class="list" id="rows-sucursal02"></ul>
+        </section>
+
+        <section class="panel" data-panel="sucursal03">
+          <div class="panel-head">
+            <span class="branch-dot dot-3"></span>
+            <h2>Sucursal 03</h2>
+            <span class="panel-count" id="count-sucursal03">0</span>
+            <button class="btn-new" type="button" data-branch="sucursal03">+ Nuevo</button>
+          </div>
+          <ul class="list" id="rows-sucursal03"></ul>
+        </section>
+      </div>
+
+      <section class="panel panel-central" data-panel="central">
+        <div class="panel-head">
+          <span class="flow-glyph" aria-hidden="true">
+            <span class="flow-dot dot-1"></span><span class="flow-dot dot-2"></span><span class="flow-dot dot-3"></span>
+          </span>
+          <span class="flow-arrow">→</span>
+          <h2>Base Central</h2>
+          <span class="panel-count" id="count-central">0</span>
+        </div>
+        <div class="central-filters" id="central-filters">
+          <button class="chip active" type="button" data-filter="all">Todas</button>
+          <button class="chip" type="button" data-filter="sucursal01">Suc 01</button>
+          <button class="chip" type="button" data-filter="sucursal02">Suc 02</button>
+          <button class="chip" type="button" data-filter="sucursal03">Suc 03</button>
+        </div>
+        <ul class="list" id="rows-central"></ul>
+      </section>
+    </main>
+
+    <section class="activity">
+      <div class="activity-head">
+        <h3>Actividad reciente</h3>
+        <div class="legend">
+          <span><i class="i-good"></i>alta</span>
+          <span><i class="i-warn"></i>actualización</span>
+          <span><i class="i-critical"></i>baja</span>
+        </div>
+      </div>
+      <ol class="timeline" id="ticker"></ol>
+    </section>
+
+    <dialog id="producto-modal">
+      <form id="producto-form">
+        <h3 id="producto-modal-title">Nuevo producto</h3>
+
+        <label class="solo-crear">Nombre
+          <input name="nombre" required maxlength="150">
+        </label>
+        <label class="solo-crear">Categoría
+          <select name="categoria_id" required></select>
+        </label>
+        <label class="solo-crear">Laboratorio
+          <select name="laboratorio_id" required></select>
+        </label>
+        <label class="solo-crear checkbox-label">
+          <input type="checkbox" name="requiere_receta">
+          Requiere receta
+        </label>
+        <label class="solo-crear">Precio costo
+          <input type="number" name="precio_costo" step="0.01" min="0" required>
+        </label>
+        <label>Precio venta
+          <input type="number" name="precio_venta" step="0.01" min="0" required>
+        </label>
+        <label>Inventario
+          <input type="number" name="inventario" min="0" required>
+        </label>
+
+        <p class="modal-error" id="producto-modal-error" hidden></p>
+
+        <div class="modal-actions">
+          <button type="button" id="producto-cancel">Cancelar</button>
+          <button type="submit" id="producto-submit">Crear</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast"></div>
+
+  </div>
+
+  <script src="/static/app.js?v=4"></script>
+</body>
+</html>
