@@ -414,7 +414,7 @@ button:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); ou
 
 .activity {
   flex-shrink: 0;
-  max-height: 210px;
+  max-height: 980px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -436,7 +436,7 @@ button:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); ou
 .legend .i-warn { background: var(--warn); }
 .legend .i-critical { background: var(--critical); }
 
-.timeline { list-style: none; margin: 0; padding: 4px 0; max-height: 160px; overflow-y: auto; }
+.timeline { list-style: none; margin: 0; padding: 4px 0; max-height: 920px; overflow-y: auto; }
 .timeline::-webkit-scrollbar { width: 7px; }
 .timeline::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
 

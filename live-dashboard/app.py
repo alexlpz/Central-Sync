@@ -329,10 +329,61 @@ def kafka_consumer_loop():
 
     subscribed = []
     last_discovery = 0.0
-    live = False
-    catch_up_targets = None
-    caught_up_partitions = set()
-    catch_up_deadline = 0.0  # red de seguridad, no el mecanismo principal
+    catchup = {"live": False, "targets": None, "caught_up": set(), "deadline": 0.0}
+    # Próximo offset a leer por partición, llevado por nosotros mismos (este
+    # consumer no confirma nada al broker). Es la clave para no repetir el
+    # catch-up silencioso en cada reasignación: una partición que ya
+    # aparece acá es una que ya veníamos leyendo, y hay que RETOMARLA ahí,
+    # no dejar que caiga a "earliest" de nuevo.
+    resume_offsets = {}
+
+    def reset_catchup():
+        catchup["live"] = False
+        catchup["targets"] = None
+        catchup["caught_up"] = set()
+        catchup["deadline"] = time.monotonic() + CATCH_UP_MAX_S
+
+    def on_assign(consumer_, partitions):
+        # Se dispara en CUALQUIER (re)asignación de particiones, no solo la
+        # que sigue a nuestro propio consumer.subscribe() de más abajo —
+        # también en un rejoin interno de librdkafka (p.ej. tras un
+        # SESSTMOUT porque Kafka estuvo caída más que session.timeout.ms).
+        #
+        # Particiones YA conocidas (veníamos leyéndolas) se retoman en el
+        # offset donde se quedaron — no hay que perder ni repetir nada.
+        # Solo las particiones NUEVAS (recién vistas, típicamente al
+        # arrancar el proceso) pasan por el catch-up silencioso, que evita
+        # que la primera lectura desde "earliest" muestre décadas de
+        # historial como si fueran cambios en vivo.
+        #
+        # Sin esto, CUALQUIER reasignación (incluida una tras un rejoin
+        # interno, sin pérdida real de posición) volvía a silenciar todo
+        # hasta alcanzar un nuevo watermark — y si Kafka tardaba en
+        # estabilizarse y se reasignaba varias veces seguidas, los cambios
+        # reales que iban llegando en el medio se aplicaban en silencio al
+        # estado y NUNCA llegaban al ticker: solo se veía el último cambio
+        # una vez que las reasignaciones por fin paraban.
+        fresh = []
+        for tp in partitions:
+            key = (tp.topic, tp.partition)
+            offset = resume_offsets.get(key)
+            if offset is not None:
+                tp.offset = offset
+            else:
+                fresh.append(key)
+        consumer_.assign(partitions)
+
+        if fresh:
+            reset_catchup()
+            log.info(
+                "Asignación con %d partición(es) nunca vista(s) — catch-up silencioso antes de transmitir en vivo",
+                len(fresh),
+            )
+        else:
+            log.info(
+                "Reasignación de %d partición(es) ya conocidas — se retoma sin perder eventos, sin silenciar",
+                len(partitions),
+            )
 
     try:
         while True:
@@ -345,33 +396,32 @@ def kafka_consumer_loop():
                     log.warning("No se pudo listar tópicos todavía: %s", exc)
                     current = subscribed
                 if current and current != subscribed:
-                    consumer.subscribe(current)
+                    consumer.subscribe(current, on_assign=on_assign)
                     log.info("Suscrito a %d tópicos: %s", len(current), ", ".join(current))
                     subscribed = current
-                    live = False
-                    catch_up_targets = None
-                    caught_up_partitions = set()
-                    catch_up_deadline = time.monotonic() + CATCH_UP_MAX_S
 
             if not subscribed:
                 time.sleep(1)
                 continue
 
-            if not live and catch_up_targets is None:
-                catch_up_targets = snapshot_watermarks(consumer, caught_up_partitions)
+            if not catchup["live"] and catchup["targets"] is None:
+                catchup["targets"] = snapshot_watermarks(consumer, catchup["caught_up"])
 
             msg = consumer.poll(timeout=1.0)
 
-            if not live and msg is not None and not msg.error() and catch_up_targets is not None:
-                key = (msg.topic(), msg.partition())
-                if msg.offset() + 1 >= catch_up_targets.get(key, 0):
-                    caught_up_partitions.add(key)
+            if msg is not None and not msg.error():
+                resume_offsets[(msg.topic(), msg.partition())] = msg.offset() + 1
 
-            if not live and catch_up_targets is not None and set(catch_up_targets) <= caught_up_partitions:
-                live = True
+            if not catchup["live"] and msg is not None and not msg.error() and catchup["targets"] is not None:
+                key = (msg.topic(), msg.partition())
+                if msg.offset() + 1 >= catchup["targets"].get(key, 0):
+                    catchup["caught_up"].add(key)
+
+            if not catchup["live"] and catchup["targets"] is not None and set(catchup["targets"]) <= catchup["caught_up"]:
+                catchup["live"] = True
                 log.info("Catch-up completo (offsets al día) — transmitiendo cambios en vivo")
-            elif not live and time.monotonic() >= catch_up_deadline:
-                live = True
+            elif not catchup["live"] and catchup["deadline"] and time.monotonic() >= catchup["deadline"]:
+                catchup["live"] = True
                 log.warning("Catch-up forzado por timeout de seguridad — puede haber quedado historial sin drenar")
 
             if msg is None:
@@ -388,9 +438,9 @@ def kafka_consumer_loop():
 
             try:
                 if msg.topic() == CENTRAL_APPLIED_TOPIC:
-                    handle_central_message(raw_value, live)
+                    handle_central_message(raw_value, catchup["live"])
                 else:
-                    handle_branch_message(msg.topic(), raw_value, live)
+                    handle_branch_message(msg.topic(), raw_value, catchup["live"])
             except Exception:
                 log.exception("Error procesando mensaje de topic=%s, se omite", msg.topic())
     finally:
